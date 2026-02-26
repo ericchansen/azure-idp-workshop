@@ -27,6 +27,13 @@ def _get_client():  # type: ignore[no-untyped-def]
     )
 
 
+def _make_request(file_bytes: bytes):  # type: ignore[no-untyped-def]
+    """Build an AnalyzeDocumentRequest from raw bytes."""
+    from azure.ai.documentintelligence.models import AnalyzeDocumentRequest
+
+    return AnalyzeDocumentRequest(bytes_source=file_bytes)
+
+
 def analyze_layout(file_bytes: bytes, filename: str) -> dict[str, Any]:
     """Run DI Layout analysis on a document. Returns result + API trace."""
     client = _get_client()
@@ -42,8 +49,7 @@ def analyze_layout(file_bytes: bytes, filename: str) -> dict[str, Any]:
         try:
             poller = client.begin_analyze_document(
                 model_id="prebuilt-layout",
-                analyze_request=file_bytes,
-                content_type="application/octet-stream",
+                body=_make_request(file_bytes),
             )
             result = poller.result()
             trace.response_status = 200
@@ -73,8 +79,7 @@ def analyze_prebuilt(model_id: str, file_bytes: bytes, filename: str) -> dict[st
         try:
             poller = client.begin_analyze_document(
                 model_id=model_id,
-                analyze_request=file_bytes,
-                content_type="application/octet-stream",
+                body=_make_request(file_bytes),
             )
             result = poller.result()
             trace.response_status = 200
