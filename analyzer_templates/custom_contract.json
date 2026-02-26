@@ -1,0 +1,50 @@
+{
+  "description": "Custom contract analyzer for Module 3 — extracts and infers fields from legal contracts",
+  "scenario": "document",
+  "baseAnalyzerId": "prebuilt-documentAnalyzer",
+  "fieldSchema": {
+    "fields": {
+      "Summary": {
+        "type": "string",
+        "method": "generate",
+        "description": "A concise 2-3 sentence summary of the contract"
+      },
+      "Parties": {
+        "type": "array",
+        "method": "extract",
+        "description": "All parties named in the contract",
+        "items": {
+          "type": "string"
+        }
+      },
+      "EffectiveDate": {
+        "type": "string",
+        "method": "extract",
+        "description": "The effective date or start date of the contract"
+      },
+      "ExpirationDate": {
+        "type": "string",
+        "method": "extract",
+        "description": "The expiration or end date of the contract"
+      },
+      "KeyObligations": {
+        "type": "array",
+        "method": "generate",
+        "description": "The key obligations and responsibilities defined in the contract",
+        "items": {
+          "type": "string"
+        }
+      },
+      "RiskLevel": {
+        "type": "string",
+        "method": "generate",
+        "description": "Overall risk level assessment: Low, Medium, or High, based on liability clauses, penalties, and obligations"
+      },
+      "Sentiment": {
+        "type": "string",
+        "method": "generate",
+        "description": "Overall sentiment of the contract language: Favorable, Neutral, or Unfavorable"
+      }
+    }
+  }
+}
