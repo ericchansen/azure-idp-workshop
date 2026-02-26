@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import mimetypes
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, UploadFile
+from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi.responses import Response
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -28,6 +30,16 @@ def list_samples() -> list[dict[str, Any]]:
                     }
                 )
     return samples
+
+
+@router.get("/samples/{filename}/raw")
+def get_sample_raw(filename: str) -> Response:
+    """Serve a sample document's raw bytes with correct MIME type."""
+    path = SAMPLES_DIR / filename
+    if not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail=f"Sample '{filename}' not found")
+    mime_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    return Response(content=path.read_bytes(), media_type=mime_type)
 
 
 @router.get("/samples/{filename}")
