@@ -53,6 +53,21 @@ jobs:
           docker build -t ${{ steps.vars.outputs.image_ref }} .
           docker push ${{ steps.vars.outputs.image_ref }}
 
+      - name: Deactivate previous PR revision
+        continue-on-error: true
+        run: |
+          REVISIONS=$(az containerapp revision list \
+            --name ${{ env.CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "[?contains(name, '--pr-${{ github.event.pull_request.number }}')].name" -o tsv)
+          for REV in $REVISIONS; do
+            echo "Deactivating old revision: $REV"
+            az containerapp revision deactivate \
+              --name ${{ env.CONTAINERAPP_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --revision "$REV" || true
+          done
+
       - name: Create review revision
         uses: Azure/aca-review-apps@v0.2.0
         id: review
