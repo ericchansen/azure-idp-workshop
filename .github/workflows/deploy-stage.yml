@@ -1,30 +1,31 @@
-name: Deploy Staging
+name: PR Staging
 
-# NOTE: PR-triggered deploys are disabled because the Microsoft tenant
-# Conditional Access policy (AADSTS53003) blocks OIDC / service-principal
-# auth from GitHub Actions runner IPs. Use workflow_dispatch for manual
-# staging deploys, or run `az` CLI locally.
 on:
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: 'PR number to deploy (used for image tagging)'
-        required: false
-        default: 'manual'
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches: [main]
 
 permissions:
-  id-token: write
   contents: read
   pull-requests: write
+
+concurrency:
+  group: pr-staging-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 env:
   AZURE_RESOURCE_GROUP: rg-idp-workshop
   ACR_NAME: idpworkshopacr
   IMAGE_NAME: idp-workshop
+  CONTAINERAPP_NAME: idp-workshop
 
 jobs:
   deploy:
-    name: Deploy Stage
+    name: Deploy Preview
+    if: >-
+      github.event.action != 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,57 +33,130 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Ensure infrastructure
-        uses: azure/arm-deploy@v2
-        with:
-          resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
-          template: infra/main.bicep
-          parameters: >-
-            environmentName=stage
-            acrName=${{ env.ACR_NAME }}
-          failOnStdErr: false
-
-      - name: Re-authenticate
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Set image tag
+        id: vars
+        run: |
+          SHORT_SHA=${GITHUB_SHA:0:7}
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "image_ref=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: ACR Login
         run: az acr login --name ${{ env.ACR_NAME }}
 
       - name: Build & Push
-        id: image
         run: |
-          IMAGE_TAG=stage-${{ github.event.inputs.pr_number || 'manual' }}
-          IMAGE_REF=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${IMAGE_TAG}
-          docker build -t ${IMAGE_REF} .
-          docker push ${IMAGE_REF}
-          echo "image-ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
+          docker build -t ${{ steps.vars.outputs.image_ref }} .
+          docker push ${{ steps.vars.outputs.image_ref }}
 
-      - name: Re-authenticate for app deploy
+      - name: Create review revision
+        uses: Azure/aca-review-apps@v0.2.0
+        id: review
+        with:
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          name: ${{ env.CONTAINERAPP_NAME }}
+          revision-name-suffix: pr-${{ github.event.pull_request.number }}
+          image: ${{ steps.vars.outputs.image_ref }}
+
+      - name: Wait for revision health
+        run: |
+          PREVIEW_URL="${{ steps.review.outputs.app-url }}"
+          echo "Preview URL: $PREVIEW_URL"
+          for i in {1..30}; do
+            if curl -sf "${PREVIEW_URL}/api/health" >/dev/null 2>&1; then
+              echo "✅ Preview is healthy"
+              exit 0
+            fi
+            echo "Attempt $i: waiting..."
+            sleep 10
+          done
+          echo "⚠️ Health check timed out (preview may still be starting)"
+
+      - name: Comment PR with preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.review.outputs.app-url }}';
+            const sha = '${{ github.sha }}'.substring(0, 7);
+            const marker = '## 🚀 PR Preview';
+            const body = [
+              marker,
+              '',
+              `| Resource | URL |`,
+              `|----------|-----|`,
+              `| **Preview** | ${url} |`,
+              `| **Health** | ${url}/api/health |`,
+              '',
+              `**Commit:** \`${sha}\``,
+              '',
+              '_This is a zero-traffic revision. It will be deactivated when the PR is closed._',
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const existing = comments.data.find(c => c.user?.type === 'Bot' && c.body?.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+      - name: Step summary
+        run: |
+          echo "## 🚀 PR Preview Deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**URL:** ${{ steps.review.outputs.app-url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Commit:** \`${GITHUB_SHA:0:7}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  deactivate:
+    name: Deactivate Preview
+    if: >-
+      github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy app with image
-        id: deploy
-        uses: azure/arm-deploy@v2
+      - name: Deactivate review revision
+        uses: Azure/aca-review-apps@v0.2.0
         with:
-          resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
-          template: infra/main.bicep
-          parameters: >-
-            environmentName=stage
-            acrName=${{ env.ACR_NAME }}
-            containerImage=${{ steps.image.outputs.image-ref }}
-          failOnStdErr: false
+          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
+          name: ${{ env.CONTAINERAPP_NAME }}
+          revision-name-suffix: pr-${{ github.event.pull_request.number }}
+          deactivate-revision-mode: true
+          image: "IGNORED_IN_DEACTIVATION_MODE"
 
-      - name: Print staging URL
-        run: echo "🚀 Staging app deployed — check Azure Portal for the URL"
+      - name: Update PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const merged = ${{ github.event.pull_request.merged }};
+            const status = merged ? '🎉 Merged' : '❌ Closed';
+            const marker = '## 🚀 PR Preview';
+            const body = [
+              marker,
+              '',
+              `**Status:** 🗑️ Deactivated (PR ${status.toLowerCase()})`,
+              '',
+              '_The preview revision has been deactivated._',
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const existing = comments.data.find(c => c.user?.type === 'Bot' && c.body?.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            }
+
+      - name: Step summary
+        run: |
+          echo "## 🗑️ PR Preview Deactivated" >> "$GITHUB_STEP_SUMMARY"
+          echo "Revision for PR #${{ github.event.pull_request.number }} has been deactivated." >> "$GITHUB_STEP_SUMMARY"
