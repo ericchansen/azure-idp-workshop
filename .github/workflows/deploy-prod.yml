@@ -1,0 +1,75 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_RESOURCE_GROUP: rg-idp-workshop
+  ACR_NAME: idpworkshopacr
+  IMAGE_NAME: idp-workshop
+  ENVIRONMENT: prod
+
+jobs:
+  deploy:
+    name: Deploy Prod
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Ensure infrastructure
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
+          template: infra/main.bicep
+          parameters: >-
+            environmentName=${{ env.ENVIRONMENT }}
+            acrName=${{ env.ACR_NAME }}
+          failOnStdErr: false
+
+      - name: Re-authenticate
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: ACR Login
+        run: az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Build & Push
+        id: image
+        run: |
+          IMAGE_TAG=sha-${GITHUB_SHA::8}
+          IMAGE_REF=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${IMAGE_TAG}
+          docker build -t ${IMAGE_REF} .
+          docker push ${IMAGE_REF}
+          echo "image-ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
+
+      - name: Re-authenticate for app deploy
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy app with image
+        id: deploy
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
+          template: infra/main.bicep
+          parameters: >-
+            environmentName=${{ env.ENVIRONMENT }}
+            acrName=${{ env.ACR_NAME }}
+            containerImage=${{ steps.image.outputs.image-ref }}
+          failOnStdErr: false
+
+      - name: Show App URL
+        run: echo "🚀 Production deployed to ${{ steps.deploy.outputs.appUrl }}"

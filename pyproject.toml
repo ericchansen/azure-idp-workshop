@@ -1,0 +1,74 @@
+[project]
+name = "azure-idp-workshop"
+version = "0.1.0"
+description = "Interactive zero-to-hero workshop: Azure Document Intelligence vs Content Understanding"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # Azure AI Content Understanding
+    "azure-ai-contentunderstanding>=1.0.0b1",
+    # Azure Document Intelligence
+    "azure-ai-documentintelligence>=1.0.0",
+    # Azure Storage & Identity
+    "azure-storage-blob",
+    "azure-identity>=1.25.1",
+    # HTTP/API
+    "fastapi",
+    "uvicorn[standard]",
+    "httpx>=0.27,<1",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "python-dotenv",
+    "python-multipart",
+    # Templates
+    "jinja2",
+    "starlette>=0.45,<1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/workshop"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio",
+    "pytest-cov",
+    "ruff",
+    "pyright",
+]
+
+[tool.uv]
+prerelease = "allow"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = [
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+    "--cov-fail-under=40",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = ["*/tests/*", "*/__init__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+include = ["src"]
+exclude = ["tests/fixtures", ".venv"]
