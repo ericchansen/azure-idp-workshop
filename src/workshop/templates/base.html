@@ -21,11 +21,22 @@
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
 
+    <!-- Marked.js for rendering markdown from CU results -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"></script>
+
     <style>
         [x-cloak] { display: none !important; }
         .htmx-indicator { display: none; }
         .htmx-request .htmx-indicator { display: inline-block; }
         .htmx-request .htmx-hide-on-request { display: none; }
+        /* Rendered markdown styling */
+        .rendered-md table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.75rem; }
+        .rendered-md th, .rendered-md td { border: 1px solid #d1d5db; padding: 0.25rem 0.5rem; text-align: left; }
+        .rendered-md th { background: #f3f4f6; font-weight: 600; }
+        .rendered-md h1, .rendered-md h2, .rendered-md h3 { font-weight: 600; margin-top: 0.75rem; }
+        .rendered-md h1 { font-size: 1.1rem; } .rendered-md h2 { font-size: 1rem; } .rendered-md h3 { font-size: 0.9rem; }
+        .rendered-md p { margin: 0.25rem 0; font-size: 0.8rem; }
+        .rendered-md ul, .rendered-md ol { padding-left: 1.25rem; font-size: 0.8rem; }
     </style>
     {% block head %}{% endblock %}
 </head>
