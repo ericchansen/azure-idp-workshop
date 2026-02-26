@@ -70,3 +70,4 @@ FastAPI (Jinja2 + HTMX)
 ## License
 
 MIT
+
