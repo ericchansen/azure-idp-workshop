@@ -1,0 +1,54 @@
+SERVICE AGREEMENT
+
+This Service Agreement ('Agreement') is entered into as of January 15, 2025,
+between Contoso Ltd., a Delaware corporation ('Provider'), and Fabrikam Inc.,
+a Washington corporation ('Client').
+
+1. SERVICES
+Provider agrees to deliver cloud migration consulting services including:
+- Assessment of existing on-premises infrastructure
+- Design of target Azure architecture
+- Migration execution for 47 virtual machines and 12 databases
+- Post-migration monitoring for 90 days
+
+2. TERM
+This Agreement is effective from February 1, 2025 through January 31, 2026.
+Either party may terminate with 30 days written notice.
+
+3. COMPENSATION
+Client shall pay Provider a total of \,450,000 USD, structured as:
+- Phase 1 (Assessment): \,000 due upon signing
+- Phase 2 (Design): \,000 due upon design approval
+- Phase 3 (Migration): \,200,000 payable monthly over 6 months
+- Phase 4 (Monitoring): \,000 due upon migration completion
+
+4. OBLIGATIONS
+Provider shall:
+- Assign a dedicated team of no fewer than 8 engineers
+- Maintain SOC 2 Type II compliance throughout the engagement
+- Provide weekly status reports to Client's CTO
+- Ensure zero data loss during migration
+
+Client shall:
+- Provide VPN access to on-premises environment within 5 business days
+- Designate a project lead with decision-making authority
+- Make Azure subscription available with appropriate quotas
+
+5. CONFIDENTIALITY
+Both parties agree to maintain strict confidentiality of all proprietary
+information exchanged during this engagement for a period of 3 years
+following termination of this Agreement.
+
+6. LIABILITY
+Provider's total liability shall not exceed the total contract value.
+Neither party shall be liable for indirect, consequential, or punitive damages.
+
+7. GOVERNING LAW
+This Agreement shall be governed by the laws of the State of Washington.
+
+SIGNATURES:
+
+___________________________      ___________________________
+Sarah Chen, CEO                  James Rodriguez, CTO
+Contoso Ltd.                     Fabrikam Inc.
+Date: January 15, 2025           Date: January 15, 2025

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Azure IDP Workshop{% endblock %}</title>
+
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Prism.js for JSON syntax highlighting -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        .htmx-indicator { display: none; }
+        .htmx-request .htmx-indicator { display: inline-block; }
+        .htmx-request .htmx-hide-on-request { display: none; }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body class="h-full bg-gray-50 text-gray-900">
+
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-8">
+                    <a href="/" class="flex items-center space-x-2">
+                        <span class="text-xl font-bold text-blue-600">📄 IDP Workshop</span>
+                    </a>
+                    <div class="hidden md:flex space-x-4">
+                        <a href="/module/1" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-50 hover:text-blue-700
+                            {% if request.url.path == '/module/1' %}bg-blue-50 text-blue-700{% else %}text-gray-600{% endif %}">
+                            Module 1: OCR & Layout
+                        </a>
+                        <a href="/module/2" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-50 hover:text-blue-700
+                            {% if request.url.path == '/module/2' %}bg-blue-50 text-blue-700{% else %}text-gray-600{% endif %}">
+                            Module 2: Prebuilt Models
+                        </a>
+                        <a href="/module/3" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-50 hover:text-blue-700
+                            {% if request.url.path == '/module/3' %}bg-blue-50 text-blue-700{% else %}text-gray-600{% endif %}">
+                            Module 3: Custom Fields
+                        </a>
+                        <a href="/guide" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-50 hover:text-blue-700
+                            {% if request.url.path == '/guide' %}bg-blue-50 text-blue-700{% else %}text-gray-600{% endif %}">
+                            Decision Guide
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-12">
+        <div class="max-w-7xl mx-auto px-4 py-6 text-center text-sm text-gray-500">
+            Azure IDP Workshop — Document Intelligence vs Content Understanding
+        </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

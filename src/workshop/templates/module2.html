@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Module 2: Prebuilt Models — IDP Workshop{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold mb-2">Module 2: Prebuilt Models — Head-to-Head</h1>
+    <p class="text-gray-600 text-lg">
+        Both DI and CU have prebuilt models for invoices and receipts. Run them on the same document
+        and compare extracted fields, confidence scores, and processing time.
+    </p>
+</div>
+
+<div x-data="{ diResult: null, cuResult: null, loading: false, selectedSample: '', selectedModel: 'prebuilt-invoice' }" x-cloak>
+
+    <!-- Model & document picker -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h2 class="text-lg font-semibold mb-3">📋 Prebuilt Model</h2>
+                <div class="flex gap-3">
+                    <button @click="selectedModel = 'prebuilt-invoice'; selectedSample = 'invoice.pdf'"
+                        :class="selectedModel === 'prebuilt-invoice' ? 'ring-2 ring-blue-500 bg-blue-50' : 'bg-gray-100 hover:bg-gray-200'"
+                        class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                        🧾 Invoice
+                    </button>
+                    <button @click="selectedModel = 'prebuilt-receipt'; selectedSample = 'receipt.png'"
+                        :class="selectedModel === 'prebuilt-receipt' ? 'ring-2 ring-blue-500 bg-blue-50' : 'bg-gray-100 hover:bg-gray-200'"
+                        class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                        🧾 Receipt
+                    </button>
+                </div>
+            </div>
+            <div>
+                <h2 class="text-lg font-semibold mb-3">📄 Sample Document</h2>
+                <p class="text-sm text-gray-500" x-text="selectedSample || 'Select a model above'"></p>
+            </div>
+        </div>
+
+        <button @click="
+            if (!selectedSample || !selectedModel) return;
+            loading = true;
+            diResult = null;
+            cuResult = null;
+
+            fetch('/api/di/prebuilt/' + selectedModel + '?sample=' + selectedSample, { method: 'POST' })
+                .then(r => r.json())
+                .then(data => { diResult = data; });
+
+            fetch('/api/cu/prebuilt/' + selectedModel + '?sample=' + selectedSample, { method: 'POST' })
+                .then(r => r.json())
+                .then(data => { cuResult = data; loading = false; })
+                .catch(e => { cuResult = { error: e.message }; loading = false; });
+        "
+            :disabled="!selectedSample || loading"
+            class="mt-4 px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-all">
+            <span x-show="!loading">🚀 Run Both DI & CU</span>
+            <span x-show="loading" class="flex items-center gap-2">
+                <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"/><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                Processing...
+            </span>
+        </button>
+    </div>
+
+    <!-- Results -->
+    <div x-show="diResult || cuResult" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- DI fields -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-blue-700 mb-2">🔵 Document Intelligence</h3>
+            <div class="text-sm text-gray-500 mb-3" x-show="diResult?.trace">
+                ⏱ <span x-text="diResult?.trace?.duration_ms?.toFixed(0) + ' ms'"></span>
+            </div>
+            <template x-if="diResult?.trace?.response?.body?.fields">
+                <div class="space-y-2">
+                    <template x-for="(field, key) in diResult.trace.response.body.fields" :key="key">
+                        <div class="flex justify-between items-center py-1 border-b border-gray-100">
+                            <span class="text-sm font-medium text-gray-700" x-text="key"></span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm" x-text="field.value"></span>
+                                <span class="text-xs px-1.5 py-0.5 rounded-full"
+                                    :class="field.confidence > 0.9 ? 'bg-green-100 text-green-700' : field.confidence > 0.7 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'"
+                                    x-text="(field.confidence * 100).toFixed(0) + '%'"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+            <template x-if="diResult && !diResult.trace?.response?.body?.fields">
+                <pre class="bg-gray-50 p-3 rounded text-xs overflow-auto max-h-60"
+                     x-text="JSON.stringify(diResult.result, null, 2)?.substring(0, 2000)"></pre>
+            </template>
+            <details class="mt-4" x-show="diResult?.trace">
+                <summary class="cursor-pointer text-sm font-medium text-blue-600">📡 API Trace</summary>
+                <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code x-text="JSON.stringify(diResult?.trace, null, 2)"></code></pre>
+            </details>
+        </div>
+
+        <!-- CU fields -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-purple-700 mb-2">🟣 Content Understanding</h3>
+            <div class="text-sm text-gray-500 mb-3" x-show="cuResult?.trace">
+                ⏱ <span x-text="cuResult?.trace?.duration_ms?.toFixed(0) + ' ms'"></span>
+            </div>
+            <template x-if="cuResult?.trace?.response?.body?.fields">
+                <div class="space-y-2">
+                    <template x-for="(field, key) in cuResult.trace.response.body.fields" :key="key">
+                        <div class="flex justify-between items-center py-1 border-b border-gray-100">
+                            <span class="text-sm font-medium text-gray-700" x-text="key"></span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm" x-text="field.value"></span>
+                                <span class="text-xs px-1.5 py-0.5 rounded-full"
+                                    :class="field.confidence > 0.9 ? 'bg-green-100 text-green-700' : field.confidence > 0.7 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'"
+                                    x-text="(field.confidence * 100).toFixed(0) + '%'"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+            <template x-if="cuResult && !cuResult.trace?.response?.body?.fields">
+                <pre class="bg-gray-50 p-3 rounded text-xs overflow-auto max-h-60"
+                     x-text="JSON.stringify(cuResult.result, null, 2)?.substring(0, 2000)"></pre>
+            </template>
+            <details class="mt-4" x-show="cuResult?.trace">
+                <summary class="cursor-pointer text-sm font-medium text-purple-600">📡 API Trace</summary>
+                <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code x-text="JSON.stringify(cuResult?.trace, null, 2)"></code></pre>
+            </details>
+        </div>
+    </div>
+
+    <div x-show="diResult && cuResult" class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-5">
+        <h3 class="font-semibold text-yellow-900 mb-2">💡 What to Notice</h3>
+        <ul class="text-sm text-yellow-800 space-y-1 list-disc list-inside">
+            <li><strong>Both services extract the same fields</strong> from structured documents like invoices and receipts.</li>
+            <li>CU prebuilt models are built on DI's technology, with added GenAI postprocessing for improved accuracy.</li>
+            <li>Compare <strong>confidence scores</strong> — CU often matches or exceeds DI's confidence.</li>
+            <li>Microsoft recommends CU for new projects; DI remains solid for existing deployments.</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

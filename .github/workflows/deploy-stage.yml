@@ -1,0 +1,161 @@
+name: Deploy Staging
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  AZURE_RESOURCE_GROUP: rg-idp-workshop
+  ACR_NAME: idpworkshopacr
+  IMAGE_NAME: idp-workshop
+
+jobs:
+  deploy:
+    name: Deploy Stage
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure infrastructure
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
+          template: infra/main.bicep
+          parameters: >-
+            environmentName=stage
+            acrName=${{ env.ACR_NAME }}
+          failOnStdErr: false
+
+      - name: Re-authenticate
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR Login
+        run: az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Build & Push
+        id: image
+        run: |
+          IMAGE_TAG=pr-${{ github.event.pull_request.number }}
+          IMAGE_REF=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${IMAGE_TAG}
+          docker build -t ${IMAGE_REF} .
+          docker push ${IMAGE_REF}
+          echo "image-ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
+
+      - name: Re-authenticate for app deploy
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy app with image
+        id: deploy
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
+          template: infra/main.bicep
+          parameters: >-
+            environmentName=stage
+            acrName=${{ env.ACR_NAME }}
+            containerImage=${{ steps.image.outputs.image-ref }}
+          failOnStdErr: false
+
+      - name: Comment PR with staging URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const appUrl = '${{ steps.deploy.outputs.appUrl }}';
+            const body = `## 🚀 Staging Deployment
+
+            | Resource | URL |
+            |----------|-----|
+            | **App** | ${appUrl} |
+            | **Health** | ${appUrl}/api/health |
+
+            _Deployed from commit \`${context.sha.substring(0, 8)}\`_`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Staging Deployment')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  cleanup:
+    name: Teardown Stage
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Delete stage Container App
+        run: |
+          az containerapp delete \
+            --name idp-workshop-stage \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --yes || true
+
+      - name: Delete stage Container Apps Environment
+        run: |
+          az containerapp env delete \
+            --name idp-cae-stage \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --yes || true
+
+      - name: Delete stage Managed Identity
+        run: |
+          az identity delete \
+            --name idp-id-stage \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || true
+
+      - name: Comment PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '🧹 Staging environment torn down.',
+            });

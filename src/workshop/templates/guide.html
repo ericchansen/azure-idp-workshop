@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Decision Guide — IDP Workshop{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold mb-2">🧭 Decision Guide: DI vs CU</h1>
+    <p class="text-gray-600 text-lg">
+        When should you use Document Intelligence vs Content Understanding?
+        Use this interactive guide to find the right service for your scenario.
+    </p>
+</div>
+
+<!-- Interactive Decision Tree -->
+<div x-data="{ step: 1, answers: {} }" class="mb-8" x-cloak>
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">🌳 Interactive Decision Tree</h2>
+
+        <!-- Step 1 -->
+        <div x-show="step === 1">
+            <p class="text-gray-700 mb-4 font-medium">What type of content are you processing?</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <button @click="answers.content = 'documents'; step = 2"
+                    class="p-4 border-2 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-left transition-all">
+                    <div class="text-2xl mb-2">📄</div>
+                    <div class="font-medium">Documents</div>
+                    <div class="text-sm text-gray-500">PDFs, images of forms, scanned docs</div>
+                </button>
+                <button @click="answers.content = 'multimodal'; answers.recommendation = 'cu'; step = 4"
+                    class="p-4 border-2 rounded-lg hover:border-purple-500 hover:bg-purple-50 text-left transition-all">
+                    <div class="text-2xl mb-2">🎥</div>
+                    <div class="font-medium">Audio / Video</div>
+                    <div class="text-sm text-gray-500">Recordings, meetings, calls</div>
+                </button>
+                <button @click="answers.content = 'images'; answers.recommendation = 'cu'; step = 4"
+                    class="p-4 border-2 rounded-lg hover:border-purple-500 hover:bg-purple-50 text-left transition-all">
+                    <div class="text-2xl mb-2">🖼️</div>
+                    <div class="font-medium">Images</div>
+                    <div class="text-sm text-gray-500">Photos, product images, diagrams</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 2: Structure level -->
+        <div x-show="step === 2">
+            <p class="text-gray-700 mb-4 font-medium">How structured are your documents?</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <button @click="answers.structure = 'highly'; step = 3"
+                    class="p-4 border-2 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-left transition-all">
+                    <div class="text-2xl mb-2">📋</div>
+                    <div class="font-medium">Highly Structured</div>
+                    <div class="text-sm text-gray-500">Standard forms: invoices, receipts, tax forms, IDs</div>
+                </button>
+                <button @click="answers.structure = 'semi'; answers.recommendation = 'cu'; step = 4"
+                    class="p-4 border-2 rounded-lg hover:border-purple-500 hover:bg-purple-50 text-left transition-all">
+                    <div class="text-2xl mb-2">📑</div>
+                    <div class="font-medium">Semi-Structured</div>
+                    <div class="text-sm text-gray-500">Varied layouts: different vendor invoices, reports</div>
+                </button>
+                <button @click="answers.structure = 'unstructured'; answers.recommendation = 'cu'; step = 4"
+                    class="p-4 border-2 rounded-lg hover:border-purple-500 hover:bg-purple-50 text-left transition-all">
+                    <div class="text-2xl mb-2">📝</div>
+                    <div class="font-medium">Unstructured</div>
+                    <div class="text-sm text-gray-500">Contracts, research papers, emails, memos</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: Existing or new? -->
+        <div x-show="step === 3">
+            <p class="text-gray-700 mb-4 font-medium">Is this a new project or an existing DI deployment?</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <button @click="answers.project = 'new'; answers.recommendation = 'cu'; step = 4"
+                    class="p-4 border-2 rounded-lg hover:border-purple-500 hover:bg-purple-50 text-left transition-all">
+                    <div class="text-2xl mb-2">🆕</div>
+                    <div class="font-medium">New Project</div>
+                    <div class="text-sm text-gray-500">Starting from scratch</div>
+                </button>
+                <button @click="answers.project = 'existing'; answers.recommendation = 'di-or-migrate'; step = 4"
+                    class="p-4 border-2 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-left transition-all">
+                    <div class="text-2xl mb-2">🔄</div>
+                    <div class="font-medium">Existing DI Deployment</div>
+                    <div class="text-sm text-gray-500">Already using Document Intelligence</div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 4: Recommendation -->
+        <div x-show="step === 4">
+            <div x-show="answers.recommendation === 'cu'" class="bg-purple-50 border-2 border-purple-200 rounded-lg p-6">
+                <h3 class="text-xl font-bold text-purple-800 mb-2">🟣 Recommendation: Content Understanding</h3>
+                <p class="text-purple-700">
+                    For your scenario, <strong>Azure Content Understanding</strong> is the recommended choice.
+                    It offers GenAI-powered extraction, multimodal support, and improved accuracy over DI.
+                </p>
+            </div>
+            <div x-show="answers.recommendation === 'di-or-migrate'" class="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
+                <h3 class="text-xl font-bold text-blue-800 mb-2">🔵 Recommendation: Keep DI / Plan Migration</h3>
+                <p class="text-blue-700">
+                    Your existing DI deployment works well for structured forms. Consider a gradual migration to CU
+                    to benefit from improved accuracy and GenAI capabilities. CU's prebuilt models are API-compatible.
+                </p>
+            </div>
+
+            <button @click="step = 1; answers = {}" class="mt-4 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm font-medium">
+                ↩ Start Over
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Comparison Matrix -->
+<div class="bg-white rounded-lg shadow p-6 mb-8">
+    <h2 class="text-lg font-semibold mb-4">📊 Feature Comparison Matrix</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b-2 border-gray-200">
+                    <th class="text-left py-3 px-4">Feature</th>
+                    <th class="text-center py-3 px-4 text-blue-700">🔵 Document Intelligence</th>
+                    <th class="text-center py-3 px-4 text-purple-700">🟣 Content Understanding</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                <tr><td class="py-2 px-4 font-medium">OCR & Layout</td><td class="text-center">✅ Excellent</td><td class="text-center">✅ Excellent (improved)</td></tr>
+                <tr><td class="py-2 px-4 font-medium">Prebuilt Models</td><td class="text-center">✅ Invoice, Receipt, W-2, ID</td><td class="text-center">✅ Same + more</td></tr>
+                <tr><td class="py-2 px-4 font-medium">Custom Fields (GenAI)</td><td class="text-center">❌ Not supported</td><td class="text-center">✅ Inferred fields</td></tr>
+                <tr><td class="py-2 px-4 font-medium">Multimodal (Audio/Video)</td><td class="text-center">❌ Documents only</td><td class="text-center">✅ Docs + Audio + Video + Images</td></tr>
+                <tr><td class="py-2 px-4 font-medium">GenAI Required</td><td class="text-center">❌ No (deterministic)</td><td class="text-center">✅ Yes (Foundry models)</td></tr>
+                <tr><td class="py-2 px-4 font-medium">Latency</td><td class="text-center">⚡ Very fast</td><td class="text-center">🔄 Slightly slower (GenAI)</td></tr>
+                <tr><td class="py-2 px-4 font-medium">Cost (Layout)</td><td class="text-center">$$ Standard</td><td class="text-center">$ Lower</td></tr>
+                <tr><td class="py-2 px-4 font-medium">SDK Maturity</td><td class="text-center">✅ GA (stable)</td><td class="text-center">🔶 Beta (1.0.0b1)</td></tr>
+                <tr><td class="py-2 px-4 font-medium">Microsoft Recommendation</td><td class="text-center">Legacy / existing</td><td class="text-center font-bold text-purple-700">✅ Recommended for new projects</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Scenario Cards -->
+<div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-4">📌 Common Scenarios</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="border rounded-lg p-4 border-purple-200 bg-purple-50">
+            <div class="font-medium mb-1">Legal contracts</div>
+            <div class="text-sm text-gray-600">Extract clauses, obligations, parties, risk</div>
+            <div class="mt-2 text-xs font-medium text-purple-700">→ Content Understanding</div>
+        </div>
+        <div class="border rounded-lg p-4 border-purple-200 bg-purple-50">
+            <div class="font-medium mb-1">Varied vendor invoices</div>
+            <div class="text-sm text-gray-600">Different layouts, same data needed</div>
+            <div class="mt-2 text-xs font-medium text-purple-700">→ Content Understanding</div>
+        </div>
+        <div class="border rounded-lg p-4 border-blue-200 bg-blue-50">
+            <div class="font-medium mb-1">Standard tax forms (W-2)</div>
+            <div class="text-sm text-gray-600">Fixed layout, high-volume processing</div>
+            <div class="mt-2 text-xs font-medium text-blue-700">→ DI (existing) or CU (new)</div>
+        </div>
+        <div class="border rounded-lg p-4 border-purple-200 bg-purple-50">
+            <div class="font-medium mb-1">Call center recordings</div>
+            <div class="text-sm text-gray-600">Transcription, sentiment, summary</div>
+            <div class="mt-2 text-xs font-medium text-purple-700">→ Content Understanding</div>
+        </div>
+        <div class="border rounded-lg p-4 border-purple-200 bg-purple-50">
+            <div class="font-medium mb-1">Research papers</div>
+            <div class="text-sm text-gray-600">Extract findings, methodology, citations</div>
+            <div class="mt-2 text-xs font-medium text-purple-700">→ Content Understanding</div>
+        </div>
+        <div class="border rounded-lg p-4 border-blue-200 bg-blue-50">
+            <div class="font-medium mb-1">ID verification</div>
+            <div class="text-sm text-gray-600">Driver licenses, passports</div>
+            <div class="mt-2 text-xs font-medium text-blue-700">→ DI (existing) or CU (new)</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
