@@ -46,24 +46,24 @@ app.include_router(cu.router)
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request, "index.html")
 
 
 @app.get("/module/1", response_class=HTMLResponse)
 async def module_1(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("module1.html", {"request": request})
+    return templates.TemplateResponse(request, "module1.html")
 
 
 @app.get("/module/2", response_class=HTMLResponse)
 async def module_2(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("module2.html", {"request": request})
+    return templates.TemplateResponse(request, "module2.html")
 
 
 @app.get("/module/3", response_class=HTMLResponse)
 async def module_3(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("module3.html", {"request": request})
+    return templates.TemplateResponse(request, "module3.html")
 
 
 @app.get("/guide", response_class=HTMLResponse)
 async def decision_guide(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("guide.html", {"request": request})
+    return templates.TemplateResponse(request, "guide.html")
