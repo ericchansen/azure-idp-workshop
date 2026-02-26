@@ -94,12 +94,51 @@
                 <div>
                     <div class="text-sm text-gray-500 mb-2">
                         ⏱ <span x-text="diResult.trace?.duration_ms?.toFixed(0) + ' ms'"></span>
+                        <span x-show="diResult.result?.pages" class="ml-2">
+                            📄 <span x-text="diResult.result?.pages?.length || 0"></span> page(s)
+                        </span>
+                        <span x-show="diResult.result?.tables" class="ml-2">
+                            📊 <span x-text="diResult.result?.tables?.length || 0"></span> table(s)
+                        </span>
                     </div>
                     <div class="mb-4">
-                        <h4 class="font-medium mb-1">Extracted Content</h4>
-                        <pre class="bg-gray-50 p-3 rounded text-xs overflow-auto max-h-60"
-                             x-text="diResult.result?.content?.substring(0, 2000) || 'No content'"></pre>
+                        <div class="flex gap-2 mb-2">
+                            <button @click="$refs.diRendered.classList.remove('hidden'); $refs.diRaw.classList.add('hidden')"
+                                class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">📄 Formatted</button>
+                            <button @click="$refs.diRaw.classList.remove('hidden'); $refs.diRendered.classList.add('hidden')"
+                                class="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">{ } Raw</button>
+                        </div>
+                        <div x-ref="diRendered" class="bg-gray-50 p-3 rounded overflow-auto max-h-80 text-sm leading-relaxed whitespace-pre-wrap"
+                             x-text="diResult.result?.content?.substring(0, 3000) || 'No content'"></div>
+                        <pre x-ref="diRaw" class="hidden bg-gray-50 p-3 rounded text-xs overflow-auto max-h-80"
+                             x-text="JSON.stringify(diResult.result, null, 2)?.substring(0, 5000)"></pre>
                     </div>
+                    <!-- Detected tables -->
+                    <template x-if="diResult.result?.tables?.length > 0">
+                        <div class="mt-4">
+                            <h4 class="font-medium mb-2 text-sm">📊 Detected Tables</h4>
+                            <template x-for="(table, ti) in diResult.result.tables" :key="ti">
+                                <div class="mb-3 overflow-auto">
+                                    <div class="text-xs text-gray-500 mb-1" x-text="'Table ' + (ti+1) + ': ' + (table.rowCount || '?') + ' rows × ' + (table.columnCount || '?') + ' cols'"></div>
+                                    <div class="rendered-md" x-html="(() => {
+                                        if (!table.cells) return '<em>No cell data</em>';
+                                        const rows = table.rowCount || 0;
+                                        const cols = table.columnCount || 0;
+                                        let grid = Array.from({length: rows}, () => Array(cols).fill(''));
+                                        table.cells.forEach(c => { if (c.rowIndex < rows && c.columnIndex < cols) grid[c.rowIndex][c.columnIndex] = c.content || ''; });
+                                        let html = '<table>';
+                                        grid.forEach((row, ri) => {
+                                            html += '<tr>' + row.map((cell, ci) => {
+                                                const isHeader = ri === 0 || (table.cells.find(c => c.rowIndex === ri && c.columnIndex === ci)?.kind === 'columnHeader');
+                                                return isHeader ? '<th>' + cell + '</th>' : '<td>' + cell + '</td>';
+                                            }).join('') + '</tr>';
+                                        });
+                                        return html + '</table>';
+                                    })()"></div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
                     <details class="mt-4">
                         <summary class="cursor-pointer text-sm font-medium text-blue-600 hover:text-blue-800">📡 View API Trace</summary>
                         <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code x-text="JSON.stringify(diResult.trace, null, 2)"></code></pre>
@@ -133,11 +172,21 @@
                 <div>
                     <div class="text-sm text-gray-500 mb-2">
                         ⏱ <span x-text="cuResult.trace?.duration_ms?.toFixed(0) + ' ms'"></span>
+                        <span x-show="cuResult.result?.contents" class="ml-2">
+                            📑 <span x-text="cuResult.result?.contents?.length || 0"></span> content segment(s)
+                        </span>
                     </div>
                     <div class="mb-4">
-                        <h4 class="font-medium mb-1">Extracted Content</h4>
-                        <pre class="bg-gray-50 p-3 rounded text-xs overflow-auto max-h-60"
-                             x-text="cuResult.result?.content?.substring(0, 2000) || JSON.stringify(cuResult.result, null, 2)?.substring(0, 2000) || 'No content'"></pre>
+                        <div class="flex gap-2 mb-2">
+                            <button @click="$refs.cuRendered.classList.remove('hidden'); $refs.cuRaw.classList.add('hidden')"
+                                class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200">📄 Formatted</button>
+                            <button @click="$refs.cuRaw.classList.remove('hidden'); $refs.cuRendered.classList.add('hidden')"
+                                class="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">{ } Raw</button>
+                        </div>
+                        <div x-ref="cuRendered" class="rendered-md bg-gray-50 p-3 rounded overflow-auto max-h-80"
+                             x-html="typeof marked !== 'undefined' && cuResult.result?.content ? marked.parse(cuResult.result.content.substring(0, 3000)) : (cuResult.result?.content?.substring(0, 3000) || 'No content')"></div>
+                        <pre x-ref="cuRaw" class="hidden bg-gray-50 p-3 rounded text-xs overflow-auto max-h-80"
+                             x-text="JSON.stringify(cuResult.result, null, 2)?.substring(0, 5000)"></pre>
                     </div>
                     <details class="mt-4">
                         <summary class="cursor-pointer text-sm font-medium text-purple-600 hover:text-purple-800">📡 View API Trace</summary>
