@@ -22,10 +22,12 @@
         this.startTime = Date.now();
         this.timer = setInterval(() => { this.elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1); }, 100);
         fetch('/api/di/layout?sample=' + this.selectedSample, { method: 'POST' })
-            .then(r => r.json()).then(d => { this.diResult = d; this.diDone = true; this.checkDone(); })
+            .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t || 'HTTP ' + r.status) }); return r.json(); })
+            .then(d => { this.diResult = d; this.diDone = true; this.checkDone(); })
             .catch(e => { this.diResult = { error: e.message }; this.diDone = true; this.checkDone(); });
         fetch('/api/cu/layout?sample=' + this.selectedSample, { method: 'POST' })
-            .then(r => r.json()).then(d => { this.cuResult = d; this.cuDone = true; this.checkDone(); })
+            .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t || 'HTTP ' + r.status) }); return r.json(); })
+            .then(d => { this.cuResult = d; this.cuDone = true; this.checkDone(); })
             .catch(e => { this.cuResult = { error: e.message }; this.cuDone = true; this.checkDone(); });
     },
     checkDone() { if (this.diDone && this.cuDone) { this.loading = false; clearInterval(this.timer); } }
