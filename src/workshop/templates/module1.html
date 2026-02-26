@@ -10,7 +10,26 @@
     </p>
 </div>
 
-<div x-data="{ diResult: null, cuResult: null, loading: false, selectedSample: '' }" x-cloak>
+<div x-data="{
+    diResult: null, cuResult: null, loading: false, selectedSample: '',
+    diDone: false, cuDone: false, startTime: null, elapsed: '0.0', timer: null,
+    hasError(r) { return r?.error || r?.trace?.error },
+    getError(r) { return r?.error || r?.trace?.error },
+    startAnalysis() {
+        if (!this.selectedSample) return;
+        this.loading = true; this.diResult = null; this.cuResult = null;
+        this.diDone = false; this.cuDone = false;
+        this.startTime = Date.now();
+        this.timer = setInterval(() => { this.elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1); }, 100);
+        fetch('/api/di/layout?sample=' + this.selectedSample, { method: 'POST' })
+            .then(r => r.json()).then(d => { this.diResult = d; this.diDone = true; this.checkDone(); })
+            .catch(e => { this.diResult = { error: e.message }; this.diDone = true; this.checkDone(); });
+        fetch('/api/cu/layout?sample=' + this.selectedSample, { method: 'POST' })
+            .then(r => r.json()).then(d => { this.cuResult = d; this.cuDone = true; this.checkDone(); })
+            .catch(e => { this.cuResult = { error: e.message }; this.cuDone = true; this.checkDone(); });
+    },
+    checkDone() { if (this.diDone && this.cuDone) { this.loading = false; clearInterval(this.timer); } }
+}" x-cloak>
 
     <!-- Document picker -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
@@ -27,26 +46,7 @@
                 🧾 Receipt (PNG)
             </button>
         </div>
-
-        <button @click="
-            if (!selectedSample) return;
-            loading = true;
-            diResult = null;
-            cuResult = null;
-
-            // Run DI Layout
-            fetch('/api/di/layout?sample=' + selectedSample, { method: 'POST' })
-                .then(r => r.json())
-                .then(data => { diResult = data; })
-                .catch(e => { diResult = { error: e.message }; });
-
-            // Run CU Layout
-            fetch('/api/cu/layout?sample=' + selectedSample, { method: 'POST' })
-                .then(r => r.json())
-                .then(data => { cuResult = data; loading = false; })
-                .catch(e => { cuResult = { error: e.message }; loading = false; });
-        "
-            :disabled="!selectedSample || loading"
+        <button @click="startAnalysis()" :disabled="!selectedSample || loading"
             class="mt-4 px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
             <span x-show="!loading">🚀 Analyze with DI & CU</span>
             <span x-show="loading" class="flex items-center gap-2">
@@ -56,13 +56,41 @@
         </button>
     </div>
 
+    <!-- Progress indicator -->
+    <div x-show="loading" x-transition class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">⏳ Analysis in Progress — <span x-text="elapsed + 's'" class="text-blue-600"></span></h2>
+        <div class="space-y-3">
+            <div class="flex items-center gap-3">
+                <div :class="diDone ? 'bg-green-500' : 'bg-blue-500 animate-pulse'" class="w-3 h-3 rounded-full"></div>
+                <span class="text-sm" x-text="diDone ? '✅ DI Layout complete (' + (diResult?.trace?.duration_ms?.toFixed(0) || '?') + 'ms)' : '🔄 Running DI Layout...'"></span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div :class="cuDone ? 'bg-green-500' : 'bg-purple-500 animate-pulse'" class="w-3 h-3 rounded-full"></div>
+                <span class="text-sm" x-text="cuDone ? '✅ CU Layout complete (' + (cuResult?.trace?.duration_ms?.toFixed(0) || '?') + 'ms)' : '🔄 Running CU Layout...'"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Preview -->
+    <div x-show="selectedSample" x-transition class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-3">👁️ Source Document</h2>
+        <div class="border rounded-lg overflow-hidden bg-gray-100 flex justify-center" style="max-height: 400px;">
+            <img x-show="selectedSample.endsWith('.png') || selectedSample.endsWith('.jpg')"
+                 :src="'/api/documents/samples/' + selectedSample + '/raw'"
+                 class="max-h-96 object-contain" alt="Document preview" />
+            <iframe x-show="selectedSample.endsWith('.pdf')"
+                    :src="selectedSample.endsWith('.pdf') ? '/api/documents/samples/' + selectedSample + '/raw' : ''"
+                    class="w-full" style="height: 400px;" title="PDF preview"></iframe>
+        </div>
+    </div>
+
     <!-- Results side by side -->
     <div x-show="diResult || cuResult" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <!-- DI Result -->
         <div class="bg-white rounded-lg shadow p-6">
             <h3 class="text-lg font-semibold text-blue-700 mb-4">🔵 Document Intelligence — Layout</h3>
-            <template x-if="diResult && !diResult.error">
+            <template x-if="diResult && !hasError(diResult)">
                 <div>
                     <div class="text-sm text-gray-500 mb-2">
                         ⏱ <span x-text="diResult.trace?.duration_ms?.toFixed(0) + ' ms'"></span>
@@ -72,17 +100,26 @@
                         <pre class="bg-gray-50 p-3 rounded text-xs overflow-auto max-h-60"
                              x-text="diResult.result?.content?.substring(0, 2000) || 'No content'"></pre>
                     </div>
-                    <!-- API Trace -->
                     <details class="mt-4">
-                        <summary class="cursor-pointer text-sm font-medium text-blue-600 hover:text-blue-800">
-                            📡 View API Request/Response
-                        </summary>
-                        <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code class="language-json" x-text="JSON.stringify(diResult.trace, null, 2)"></code></pre>
+                        <summary class="cursor-pointer text-sm font-medium text-blue-600 hover:text-blue-800">📡 View API Trace</summary>
+                        <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code x-text="JSON.stringify(diResult.trace, null, 2)"></code></pre>
                     </details>
                 </div>
             </template>
-            <template x-if="diResult?.error">
-                <div class="text-red-600 text-sm" x-text="diResult.error"></div>
+            <template x-if="diResult && hasError(diResult)">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-start gap-2">
+                        <span class="text-red-500 text-lg">⚠️</span>
+                        <div>
+                            <div class="font-medium text-red-800">DI Analysis Failed</div>
+                            <div class="text-sm text-red-600 mt-1 font-mono break-all" x-text="getError(diResult)"></div>
+                        </div>
+                    </div>
+                    <details class="mt-3">
+                        <summary class="cursor-pointer text-sm font-medium text-red-600">📡 API Trace</summary>
+                        <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code x-text="JSON.stringify(diResult?.trace, null, 2)"></code></pre>
+                    </details>
+                </div>
             </template>
             <template x-if="!diResult">
                 <div class="text-gray-400 text-sm">Waiting for results...</div>
@@ -92,7 +129,7 @@
         <!-- CU Result -->
         <div class="bg-white rounded-lg shadow p-6">
             <h3 class="text-lg font-semibold text-purple-700 mb-4">🟣 Content Understanding — Layout</h3>
-            <template x-if="cuResult && !cuResult.error">
+            <template x-if="cuResult && !hasError(cuResult)">
                 <div>
                     <div class="text-sm text-gray-500 mb-2">
                         ⏱ <span x-text="cuResult.trace?.duration_ms?.toFixed(0) + ' ms'"></span>
@@ -102,17 +139,26 @@
                         <pre class="bg-gray-50 p-3 rounded text-xs overflow-auto max-h-60"
                              x-text="cuResult.result?.content?.substring(0, 2000) || JSON.stringify(cuResult.result, null, 2)?.substring(0, 2000) || 'No content'"></pre>
                     </div>
-                    <!-- API Trace -->
                     <details class="mt-4">
-                        <summary class="cursor-pointer text-sm font-medium text-purple-600 hover:text-purple-800">
-                            📡 View API Request/Response
-                        </summary>
-                        <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code class="language-json" x-text="JSON.stringify(cuResult.trace, null, 2)"></code></pre>
+                        <summary class="cursor-pointer text-sm font-medium text-purple-600 hover:text-purple-800">📡 View API Trace</summary>
+                        <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code x-text="JSON.stringify(cuResult.trace, null, 2)"></code></pre>
                     </details>
                 </div>
             </template>
-            <template x-if="cuResult?.error">
-                <div class="text-red-600 text-sm" x-text="cuResult.error"></div>
+            <template x-if="cuResult && hasError(cuResult)">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-start gap-2">
+                        <span class="text-red-500 text-lg">⚠️</span>
+                        <div>
+                            <div class="font-medium text-red-800">CU Analysis Failed</div>
+                            <div class="text-sm text-red-600 mt-1 font-mono break-all" x-text="getError(cuResult)"></div>
+                        </div>
+                    </div>
+                    <details class="mt-3">
+                        <summary class="cursor-pointer text-sm font-medium text-red-600">📡 API Trace</summary>
+                        <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code x-text="JSON.stringify(cuResult?.trace, null, 2)"></code></pre>
+                    </details>
+                </div>
             </template>
             <template x-if="!cuResult">
                 <div class="text-gray-400 text-sm">Waiting for results...</div>
@@ -130,5 +176,96 @@
             <li>CU Layout is priced lower than DI Layout for equivalent functionality.</li>
         </ul>
     </div>
+
+    <!-- Behind the Scenes -->
+    <details class="mt-6 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <summary class="cursor-pointer p-5 font-semibold text-indigo-900 hover:text-indigo-700">
+            📚 Behind the Scenes — How This Works
+        </summary>
+        <div class="px-5 pb-5 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-semibold text-indigo-800 mb-2">☁️ Azure Resources Required</h4>
+                    <ul class="text-sm space-y-1 list-disc list-inside text-gray-700">
+                        <li><strong>Azure AI Services</strong> (kind: AIServices) — single multi-service resource</li>
+                        <li>Serves both DI and CU from the same endpoint</li>
+                        <li>Managed Identity for auth (no API keys)</li>
+                        <li>Region: East US (or any supported region)</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-indigo-800 mb-2">🔗 REST API Endpoints</h4>
+                    <div class="text-xs font-mono bg-white p-3 rounded border space-y-2">
+                        <div><span class="text-blue-600 font-bold">DI:</span> POST /formrecognizer/documentModels/prebuilt-layout:analyze</div>
+                        <div><span class="text-purple-600 font-bold">CU:</span> POST /contentunderstanding/analyzers/prebuilt-layout:analyze</div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h4 class="font-semibold text-indigo-800 mb-2">🐍 Python SDK Code</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <div class="text-xs font-medium text-blue-700 mb-1">Document Intelligence</div>
+                        <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-python">from azure.ai.documentintelligence import (
+    DocumentIntelligenceClient,
+)
+from azure.identity import DefaultAzureCredential
+
+client = DocumentIntelligenceClient(
+    endpoint=endpoint,
+    credential=DefaultAzureCredential(),
+)
+poller = client.begin_analyze_document(
+    model_id="prebuilt-layout",
+    body=AnalyzeDocumentRequest(
+        bytes_source=file_bytes
+    ),
+)
+result = poller.result()</code></pre>
+                    </div>
+                    <div>
+                        <div class="text-xs font-medium text-purple-700 mb-1">Content Understanding</div>
+                        <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-python">from azure.ai.contentunderstanding import (
+    ContentUnderstandingClient,
+)
+from azure.identity import DefaultAzureCredential
+
+client = ContentUnderstandingClient(
+    endpoint=endpoint,
+    credential=DefaultAzureCredential(),
+)
+poller = client.begin_analyze(
+    analyzer_id="prebuilt-layout",
+    body=file_bytes,
+    content_type="application/octet-stream",
+)
+result = poller.result()</code></pre>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h4 class="font-semibold text-indigo-800 mb-2">💰 Pricing (per page)</h4>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div class="bg-white p-3 rounded border"><span class="text-blue-700 font-medium">DI Layout:</span> $0.01/page</div>
+                    <div class="bg-white p-3 rounded border"><span class="text-purple-700 font-medium">CU Layout:</span> $0.005/page</div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">CU Layout is 50% cheaper for equivalent OCR + layout functionality.</p>
+            </div>
+            <div>
+                <h4 class="font-semibold text-indigo-800 mb-2">🛠️ Quick Setup</h4>
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-bash"># Create an Azure AI Services resource
+az cognitiveservices account create \
+    --name my-ai-services \
+    --resource-group my-rg \
+    --kind AIServices \
+    --sku S0 \
+    --location eastus
+
+# Install the Python SDKs
+pip install azure-ai-documentintelligence \
+    azure-ai-contentunderstanding azure-identity</code></pre>
+            </div>
+        </div>
+    </details>
 </div>
 {% endblock %}

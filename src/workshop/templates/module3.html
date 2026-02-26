@@ -11,17 +11,36 @@
 </div>
 
 <div x-data="{
-    cuResult: null,
-    diResult: null,
-    loading: false,
-    selectedSample: 'contract.pdf',
+    cuResult: null, diResult: null, loading: false,
+    selectedSample: 'contract.txt',
+    cuDone: false, diDone: false, startTime: null, elapsed: '0.0', timer: null,
+    hasError(r) { return r?.error || r?.trace?.error },
+    getError(r) { return r?.error || r?.trace?.error },
     fields: [
         { name: 'summary', type: 'string', description: 'A 2-3 sentence summary of the document' },
         { name: 'key_parties', type: 'string', description: 'Names of all parties mentioned' },
         { name: 'obligations', type: 'string', description: 'Key obligations or requirements' },
         { name: 'risk_level', type: 'string', description: 'Overall risk level: low, medium, or high' },
         { name: 'sentiment', type: 'string', description: 'Overall sentiment: positive, neutral, or negative' },
-    ]
+    ],
+    startAnalysis() {
+        if (!this.selectedSample) return;
+        this.loading = true; this.cuResult = null; this.diResult = null;
+        this.cuDone = false; this.diDone = false;
+        this.startTime = Date.now();
+        this.timer = setInterval(() => { this.elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1); }, 100);
+        fetch('/api/cu/custom', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sample: this.selectedSample, fields: this.fields, analyzer_id: 'workshop-contract' })
+        })
+        .then(r => r.json()).then(d => { this.cuResult = d; this.cuDone = true; this.checkDone(); })
+        .catch(e => { this.cuResult = { error: e.message }; this.cuDone = true; this.checkDone(); });
+        fetch('/api/di/layout?sample=' + this.selectedSample, { method: 'POST' })
+        .then(r => r.json()).then(d => { this.diResult = d; this.diDone = true; this.checkDone(); })
+        .catch(e => { this.diResult = { error: e.message }; this.diDone = true; this.checkDone(); });
+    },
+    checkDone() { if (this.cuDone && this.diDone) { this.loading = false; clearInterval(this.timer); } }
 }" x-cloak>
 
     <!-- Config -->
@@ -30,7 +49,6 @@
         <p class="text-sm text-gray-600 mb-4">
             These are the fields CU will attempt to extract using GenAI inference. DI can't do this — it only extracts raw text and layout.
         </p>
-
         <div class="space-y-2">
             <template x-for="(field, idx) in fields" :key="idx">
                 <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-lg">
@@ -40,30 +58,8 @@
                 </div>
             </template>
         </div>
-
         <div class="mt-4 flex gap-3">
-            <button @click="
-                if (!selectedSample) return;
-                loading = true;
-                cuResult = null;
-                diResult = null;
-
-                // Run CU custom analyzer
-                fetch('/api/cu/custom', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sample: selectedSample, fields: fields, analyzer_id: 'workshop-contract' })
-                })
-                .then(r => r.json())
-                .then(data => { cuResult = data; });
-
-                // Run DI layout for comparison
-                fetch('/api/di/layout?sample=' + selectedSample, { method: 'POST' })
-                .then(r => r.json())
-                .then(data => { diResult = data; loading = false; })
-                .catch(e => { diResult = { error: e.message }; loading = false; });
-            "
-                :disabled="loading"
+            <button @click="startAnalysis()" :disabled="loading"
                 class="px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 transition-all">
                 <span x-show="!loading">🧠 Run CU Custom + DI Layout</span>
                 <span x-show="loading" class="flex items-center gap-2">
@@ -74,13 +70,41 @@
         </div>
     </div>
 
+    <!-- Progress indicator -->
+    <div x-show="loading" x-transition class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">⏳ Analysis in Progress — <span x-text="elapsed + 's'" class="text-purple-600"></span></h2>
+        <div class="space-y-3">
+            <div class="flex items-center gap-3">
+                <div :class="cuDone ? 'bg-green-500' : 'bg-purple-500 animate-pulse'" class="w-3 h-3 rounded-full"></div>
+                <span class="text-sm" x-text="cuDone ? '✅ CU Custom complete (' + (cuResult?.trace?.duration_ms?.toFixed(0) || '?') + 'ms)' : '🔄 Running CU Custom analyzer (GenAI inference)...'"></span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div :class="diDone ? 'bg-green-500' : 'bg-blue-500 animate-pulse'" class="w-3 h-3 rounded-full"></div>
+                <span class="text-sm" x-text="diDone ? '✅ DI Layout complete (' + (diResult?.trace?.duration_ms?.toFixed(0) || '?') + 'ms)' : '🔄 Running DI Layout...'"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Preview -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-3">👁️ Source Document — contract.txt</h2>
+        <div class="border rounded-lg overflow-hidden bg-gray-100 p-4" style="max-height: 300px; overflow-y: auto;">
+            <pre class="text-xs whitespace-pre-wrap" id="contract-preview"></pre>
+        </div>
+        <script>
+            fetch('/api/documents/samples/contract.txt/raw')
+                .then(r => r.text())
+                .then(t => { document.getElementById('contract-preview').textContent = t; });
+        </script>
+    </div>
+
     <!-- Results -->
     <div x-show="cuResult || diResult" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <!-- CU custom result (left — star of the show) -->
         <div class="bg-white rounded-lg shadow p-6 border-2 border-purple-200">
             <h3 class="text-lg font-semibold text-purple-700 mb-4">🟣 CU — Custom Inferred Fields</h3>
-            <template x-if="cuResult && !cuResult.error">
+            <template x-if="cuResult && !hasError(cuResult)">
                 <div>
                     <div class="text-sm text-gray-500 mb-3">
                         ⏱ <span x-text="cuResult.trace?.duration_ms?.toFixed(0) + ' ms'"></span>
@@ -90,7 +114,7 @@
                             <div class="bg-purple-50 p-3 rounded-lg">
                                 <div class="text-sm font-medium text-purple-800" x-text="field.name"></div>
                                 <div class="text-sm mt-1"
-                                     x-text="cuResult.result?.fields?.[field.name]?.value || cuResult.result?.[field.name] || '(not extracted)'"></div>
+                                     x-text="cuResult.result?.fields?.[field.name]?.valueString || cuResult.result?.fields?.[field.name]?.value || cuResult.result?.[field.name] || '(not extracted)'"></div>
                             </div>
                         </template>
                     </div>
@@ -100,8 +124,20 @@
                     </details>
                 </div>
             </template>
-            <template x-if="cuResult?.error">
-                <div class="text-red-600 text-sm" x-text="cuResult.error"></div>
+            <template x-if="cuResult && hasError(cuResult)">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-start gap-2">
+                        <span class="text-red-500 text-lg">⚠️</span>
+                        <div>
+                            <div class="font-medium text-red-800">CU Custom Analysis Failed</div>
+                            <div class="text-sm text-red-600 mt-1 font-mono break-all" x-text="getError(cuResult)"></div>
+                        </div>
+                    </div>
+                    <details class="mt-3">
+                        <summary class="cursor-pointer text-sm font-medium text-red-600">📡 API Trace</summary>
+                        <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code x-text="JSON.stringify(cuResult?.trace, null, 2)"></code></pre>
+                    </details>
+                </div>
             </template>
         </div>
 
@@ -111,7 +147,7 @@
             <p class="text-sm text-gray-500 mb-3 italic">
                 DI extracts text and layout but cannot infer meaning, summarize, or extract custom fields.
             </p>
-            <template x-if="diResult && !diResult.error">
+            <template x-if="diResult && !hasError(diResult)">
                 <div>
                     <div class="text-sm text-gray-500 mb-3">
                         ⏱ <span x-text="diResult.trace?.duration_ms?.toFixed(0) + ' ms'"></span>
@@ -124,9 +160,21 @@
                     </details>
                 </div>
             </template>
+            <template x-if="diResult && hasError(diResult)">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-start gap-2">
+                        <span class="text-red-500 text-lg">⚠️</span>
+                        <div>
+                            <div class="font-medium text-red-800">DI Analysis Failed</div>
+                            <div class="text-sm text-red-600 mt-1 font-mono break-all" x-text="getError(diResult)"></div>
+                        </div>
+                    </div>
+                </div>
+            </template>
         </div>
     </div>
 
+    <!-- Teaching point -->
     <div x-show="cuResult && diResult" class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-5">
         <h3 class="font-semibold text-yellow-900 mb-2">💡 What to Notice</h3>
         <ul class="text-sm text-yellow-800 space-y-1 list-disc list-inside">
@@ -136,5 +184,73 @@
             <li>CU's custom fields use your Foundry model deployment (GPT-4.1) — check the API trace for token usage and cost.</li>
         </ul>
     </div>
+
+    <!-- Behind the Scenes -->
+    <details class="mt-6 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <summary class="cursor-pointer p-5 font-semibold text-indigo-900 hover:text-indigo-700">
+            📚 Behind the Scenes — How This Works
+        </summary>
+        <div class="px-5 pb-5 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-semibold text-indigo-800 mb-2">☁️ Azure Resources Required</h4>
+                    <ul class="text-sm space-y-1 list-disc list-inside text-gray-700">
+                        <li><strong>Azure AI Services</strong> (kind: AIServices)</li>
+                        <li><strong>GPT-4.1 model deployment</strong> — CU uses this for GenAI inference</li>
+                        <li><strong>text-embedding-3-large</strong> — for semantic understanding</li>
+                        <li>Custom analyzers are created via API with a <code>fieldSchema</code></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-indigo-800 mb-2">🔗 REST API Flow</h4>
+                    <div class="text-xs font-mono bg-white p-3 rounded border space-y-2">
+                        <div><span class="text-purple-600 font-bold">1.</span> PUT /contentunderstanding/analyzers/<span class="text-orange-600">{id}</span> (create)</div>
+                        <div><span class="text-purple-600 font-bold">2.</span> POST /contentunderstanding/analyzers/<span class="text-orange-600">{id}</span>:analyze</div>
+                        <div><span class="text-purple-600 font-bold">3.</span> GET /contentunderstanding/analyzers/<span class="text-orange-600">{id}</span>/results/<span class="text-orange-600">{rid}</span></div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Analyzers are created once and reused. Fields are defined in the <code>fieldSchema</code>.</p>
+                </div>
+            </div>
+            <div>
+                <h4 class="font-semibold text-indigo-800 mb-2">🐍 Python SDK Code</h4>
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-python"># Define custom fields
+analyzer_def = {
+    "description": "Contract analyzer",
+    "scenario": "document",
+    "fieldSchema": {
+        "fields": {
+            "summary": {"type": "string", "description": "2-3 sentence summary"},
+            "key_parties": {"type": "string", "description": "Names of all parties"},
+            "risk_level": {"type": "string", "description": "Risk: low/medium/high"},
+        }
+    }
+}
+
+# Create the analyzer (one-time setup)
+client.begin_create_analyzer(analyzer_id="my-contract", body=analyzer_def).result()
+
+# Analyze a document
+poller = client.begin_analyze(
+    analyzer_id="my-contract",
+    body=file_bytes,
+    content_type="application/octet-stream",
+)
+result = poller.result()
+
+# Access inferred fields
+for content in result["contents"]:
+    print(content["fields"]["summary"]["valueString"])
+    print(content["fields"]["risk_level"]["valueString"])</code></pre>
+            </div>
+            <div>
+                <h4 class="font-semibold text-indigo-800 mb-2">💰 Pricing</h4>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div class="bg-white p-3 rounded border"><span class="text-purple-700 font-medium">CU Custom:</span> $0.05/page (includes GenAI)</div>
+                    <div class="bg-white p-3 rounded border"><span class="text-blue-700 font-medium">DI Layout:</span> $0.01/page (text only)</div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">CU Custom costs more because it runs GPT-4.1 inference on every page to extract your custom fields.</p>
+            </div>
+        </div>
+    </details>
 </div>
 {% endblock %}

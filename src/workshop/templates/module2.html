@@ -10,7 +10,27 @@
     </p>
 </div>
 
-<div x-data="{ diResult: null, cuResult: null, loading: false, selectedSample: '', selectedModel: 'prebuilt-invoice' }" x-cloak>
+<div x-data="{
+    diResult: null, cuResult: null, loading: false, selectedSample: '', selectedModel: 'prebuilt-invoice',
+    diDone: false, cuDone: false, startTime: null, elapsed: '0.0', timer: null,
+    hasError(r) { return r?.error || r?.trace?.error },
+    getError(r) { return r?.error || r?.trace?.error },
+    getFields(r) { return r?.result?.fields || r?.trace?.response?.body?.fields || null },
+    startAnalysis() {
+        if (!this.selectedSample || !this.selectedModel) return;
+        this.loading = true; this.diResult = null; this.cuResult = null;
+        this.diDone = false; this.cuDone = false;
+        this.startTime = Date.now();
+        this.timer = setInterval(() => { this.elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1); }, 100);
+        fetch('/api/di/prebuilt/' + this.selectedModel + '?sample=' + this.selectedSample, { method: 'POST' })
+            .then(r => r.json()).then(d => { this.diResult = d; this.diDone = true; this.checkDone(); })
+            .catch(e => { this.diResult = { error: e.message }; this.diDone = true; this.checkDone(); });
+        fetch('/api/cu/prebuilt/' + this.selectedModel + '?sample=' + this.selectedSample, { method: 'POST' })
+            .then(r => r.json()).then(d => { this.cuResult = d; this.cuDone = true; this.checkDone(); })
+            .catch(e => { this.cuResult = { error: e.message }; this.cuDone = true; this.checkDone(); });
+    },
+    checkDone() { if (this.diDone && this.cuDone) { this.loading = false; clearInterval(this.timer); } }
+}" x-cloak>
 
     <!-- Model & document picker -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
@@ -35,23 +55,7 @@
                 <p class="text-sm text-gray-500" x-text="selectedSample || 'Select a model above'"></p>
             </div>
         </div>
-
-        <button @click="
-            if (!selectedSample || !selectedModel) return;
-            loading = true;
-            diResult = null;
-            cuResult = null;
-
-            fetch('/api/di/prebuilt/' + selectedModel + '?sample=' + selectedSample, { method: 'POST' })
-                .then(r => r.json())
-                .then(data => { diResult = data; });
-
-            fetch('/api/cu/prebuilt/' + selectedModel + '?sample=' + selectedSample, { method: 'POST' })
-                .then(r => r.json())
-                .then(data => { cuResult = data; loading = false; })
-                .catch(e => { cuResult = { error: e.message }; loading = false; });
-        "
-            :disabled="!selectedSample || loading"
+        <button @click="startAnalysis()" :disabled="!selectedSample || loading"
             class="mt-4 px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-all">
             <span x-show="!loading">🚀 Run Both DI & CU</span>
             <span x-show="loading" class="flex items-center gap-2">
@@ -61,72 +65,131 @@
         </button>
     </div>
 
+    <!-- Progress indicator -->
+    <div x-show="loading" x-transition class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">⏳ Analysis in Progress — <span x-text="elapsed + 's'" class="text-blue-600"></span></h2>
+        <div class="space-y-3">
+            <div class="flex items-center gap-3">
+                <div :class="diDone ? 'bg-green-500' : 'bg-blue-500 animate-pulse'" class="w-3 h-3 rounded-full"></div>
+                <span class="text-sm" x-text="diDone ? '✅ DI ' + selectedModel + ' complete (' + (diResult?.trace?.duration_ms?.toFixed(0) || '?') + 'ms)' : '🔄 Running DI ' + selectedModel + '...'"></span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div :class="cuDone ? 'bg-green-500' : 'bg-purple-500 animate-pulse'" class="w-3 h-3 rounded-full"></div>
+                <span class="text-sm" x-text="cuDone ? '✅ CU ' + selectedModel + ' complete (' + (cuResult?.trace?.duration_ms?.toFixed(0) || '?') + 'ms)' : '🔄 Running CU ' + selectedModel + '...'"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Preview -->
+    <div x-show="selectedSample" x-transition class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-3">👁️ Source Document</h2>
+        <div class="border rounded-lg overflow-hidden bg-gray-100 flex justify-center" style="max-height: 400px;">
+            <img x-show="selectedSample.endsWith('.png') || selectedSample.endsWith('.jpg')"
+                 :src="'/api/documents/samples/' + selectedSample + '/raw'"
+                 class="max-h-96 object-contain" alt="Document preview" />
+            <iframe x-show="selectedSample.endsWith('.pdf')"
+                    :src="selectedSample.endsWith('.pdf') ? '/api/documents/samples/' + selectedSample + '/raw' : ''"
+                    class="w-full" style="height: 400px;" title="PDF preview"></iframe>
+        </div>
+    </div>
+
     <!-- Results -->
     <div x-show="diResult || cuResult" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <!-- DI fields -->
         <div class="bg-white rounded-lg shadow p-6">
             <h3 class="text-lg font-semibold text-blue-700 mb-2">🔵 Document Intelligence</h3>
-            <div class="text-sm text-gray-500 mb-3" x-show="diResult?.trace">
-                ⏱ <span x-text="diResult?.trace?.duration_ms?.toFixed(0) + ' ms'"></span>
-            </div>
-            <template x-if="diResult?.trace?.response?.body?.fields">
-                <div class="space-y-2">
-                    <template x-for="(field, key) in diResult.trace.response.body.fields" :key="key">
-                        <div class="flex justify-between items-center py-1 border-b border-gray-100">
-                            <span class="text-sm font-medium text-gray-700" x-text="key"></span>
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm" x-text="field.value"></span>
-                                <span class="text-xs px-1.5 py-0.5 rounded-full"
-                                    :class="field.confidence > 0.9 ? 'bg-green-100 text-green-700' : field.confidence > 0.7 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'"
-                                    x-text="(field.confidence * 100).toFixed(0) + '%'"></span>
-                            </div>
+            <template x-if="diResult && !hasError(diResult)">
+                <div>
+                    <div class="text-sm text-gray-500 mb-3">
+                        ⏱ <span x-text="diResult?.trace?.duration_ms?.toFixed(0) + ' ms'"></span>
+                    </div>
+                    <template x-if="getFields(diResult)">
+                        <div class="space-y-2">
+                            <template x-for="(field, key) in getFields(diResult)" :key="key">
+                                <div class="flex justify-between items-center py-1 border-b border-gray-100">
+                                    <span class="text-sm font-medium text-gray-700" x-text="key"></span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm" x-text="field.value || field.valueString || field.content || ''"></span>
+                                        <span x-show="field.confidence" class="text-xs px-1.5 py-0.5 rounded-full"
+                                            :class="field.confidence > 0.9 ? 'bg-green-100 text-green-700' : field.confidence > 0.7 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'"
+                                            x-text="(field.confidence * 100).toFixed(0) + '%'"></span>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </template>
+                    <template x-if="!getFields(diResult)">
+                        <pre class="bg-gray-50 p-3 rounded text-xs overflow-auto max-h-60"
+                             x-text="JSON.stringify(diResult.result, null, 2)?.substring(0, 2000)"></pre>
+                    </template>
+                    <details class="mt-4">
+                        <summary class="cursor-pointer text-sm font-medium text-blue-600">📡 API Trace</summary>
+                        <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code x-text="JSON.stringify(diResult?.trace, null, 2)"></code></pre>
+                    </details>
                 </div>
             </template>
-            <template x-if="diResult && !diResult.trace?.response?.body?.fields">
-                <pre class="bg-gray-50 p-3 rounded text-xs overflow-auto max-h-60"
-                     x-text="JSON.stringify(diResult.result, null, 2)?.substring(0, 2000)"></pre>
+            <template x-if="diResult && hasError(diResult)">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-start gap-2">
+                        <span class="text-red-500 text-lg">⚠️</span>
+                        <div>
+                            <div class="font-medium text-red-800">DI Analysis Failed</div>
+                            <div class="text-sm text-red-600 mt-1 font-mono break-all" x-text="getError(diResult)"></div>
+                        </div>
+                    </div>
+                </div>
             </template>
-            <details class="mt-4" x-show="diResult?.trace">
-                <summary class="cursor-pointer text-sm font-medium text-blue-600">📡 API Trace</summary>
-                <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code x-text="JSON.stringify(diResult?.trace, null, 2)"></code></pre>
-            </details>
         </div>
 
         <!-- CU fields -->
         <div class="bg-white rounded-lg shadow p-6">
             <h3 class="text-lg font-semibold text-purple-700 mb-2">🟣 Content Understanding</h3>
-            <div class="text-sm text-gray-500 mb-3" x-show="cuResult?.trace">
-                ⏱ <span x-text="cuResult?.trace?.duration_ms?.toFixed(0) + ' ms'"></span>
-            </div>
-            <template x-if="cuResult?.trace?.response?.body?.fields">
-                <div class="space-y-2">
-                    <template x-for="(field, key) in cuResult.trace.response.body.fields" :key="key">
-                        <div class="flex justify-between items-center py-1 border-b border-gray-100">
-                            <span class="text-sm font-medium text-gray-700" x-text="key"></span>
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm" x-text="field.value"></span>
-                                <span class="text-xs px-1.5 py-0.5 rounded-full"
-                                    :class="field.confidence > 0.9 ? 'bg-green-100 text-green-700' : field.confidence > 0.7 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'"
-                                    x-text="(field.confidence * 100).toFixed(0) + '%'"></span>
-                            </div>
+            <template x-if="cuResult && !hasError(cuResult)">
+                <div>
+                    <div class="text-sm text-gray-500 mb-3">
+                        ⏱ <span x-text="cuResult?.trace?.duration_ms?.toFixed(0) + ' ms'"></span>
+                    </div>
+                    <template x-if="getFields(cuResult)">
+                        <div class="space-y-2">
+                            <template x-for="(field, key) in getFields(cuResult)" :key="key">
+                                <div class="flex justify-between items-center py-1 border-b border-gray-100">
+                                    <span class="text-sm font-medium text-gray-700" x-text="key"></span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm" x-text="field.value || field.valueString || field.content || ''"></span>
+                                        <span x-show="field.confidence" class="text-xs px-1.5 py-0.5 rounded-full"
+                                            :class="field.confidence > 0.9 ? 'bg-green-100 text-green-700' : field.confidence > 0.7 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'"
+                                            x-text="(field.confidence * 100).toFixed(0) + '%'"></span>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </template>
+                    <template x-if="!getFields(cuResult)">
+                        <pre class="bg-gray-50 p-3 rounded text-xs overflow-auto max-h-60"
+                             x-text="cuResult.result?.content?.substring(0, 2000) || JSON.stringify(cuResult.result, null, 2)?.substring(0, 2000)"></pre>
+                    </template>
+                    <details class="mt-4">
+                        <summary class="cursor-pointer text-sm font-medium text-purple-600">📡 API Trace</summary>
+                        <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code x-text="JSON.stringify(cuResult?.trace, null, 2)"></code></pre>
+                    </details>
                 </div>
             </template>
-            <template x-if="cuResult && !cuResult.trace?.response?.body?.fields">
-                <pre class="bg-gray-50 p-3 rounded text-xs overflow-auto max-h-60"
-                     x-text="JSON.stringify(cuResult.result, null, 2)?.substring(0, 2000)"></pre>
+            <template x-if="cuResult && hasError(cuResult)">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-start gap-2">
+                        <span class="text-red-500 text-lg">⚠️</span>
+                        <div>
+                            <div class="font-medium text-red-800">CU Analysis Failed</div>
+                            <div class="text-sm text-red-600 mt-1 font-mono break-all" x-text="getError(cuResult)"></div>
+                        </div>
+                    </div>
+                </div>
             </template>
-            <details class="mt-4" x-show="cuResult?.trace">
-                <summary class="cursor-pointer text-sm font-medium text-purple-600">📡 API Trace</summary>
-                <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code x-text="JSON.stringify(cuResult?.trace, null, 2)"></code></pre>
-            </details>
         </div>
     </div>
 
+    <!-- Teaching point -->
     <div x-show="diResult && cuResult" class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-5">
         <h3 class="font-semibold text-yellow-900 mb-2">💡 What to Notice</h3>
         <ul class="text-sm text-yellow-800 space-y-1 list-disc list-inside">
@@ -136,5 +199,73 @@
             <li>Microsoft recommends CU for new projects; DI remains solid for existing deployments.</li>
         </ul>
     </div>
+
+    <!-- Behind the Scenes -->
+    <details class="mt-6 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <summary class="cursor-pointer p-5 font-semibold text-indigo-900 hover:text-indigo-700">
+            📚 Behind the Scenes — How This Works
+        </summary>
+        <div class="px-5 pb-5 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-semibold text-indigo-800 mb-2">☁️ Azure Resources Required</h4>
+                    <ul class="text-sm space-y-1 list-disc list-inside text-gray-700">
+                        <li><strong>Azure AI Services</strong> (kind: AIServices)</li>
+                        <li>Prebuilt models are included — no training or deployment needed</li>
+                        <li>Both DI and CU share the same prebuilt model names</li>
+                        <li>Managed Identity for auth (no API keys)</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-indigo-800 mb-2">🔗 REST API Endpoints</h4>
+                    <div class="text-xs font-mono bg-white p-3 rounded border space-y-2">
+                        <div><span class="text-blue-600 font-bold">DI:</span> POST /formrecognizer/documentModels/<span class="text-orange-600">{model_id}</span>:analyze</div>
+                        <div><span class="text-purple-600 font-bold">CU:</span> POST /contentunderstanding/analyzers/<span class="text-orange-600">{analyzer_id}</span>:analyze</div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Models: <code>prebuilt-invoice</code>, <code>prebuilt-receipt</code>, <code>prebuilt-layout</code>, <code>prebuilt-read</code></p>
+                </div>
+            </div>
+            <div>
+                <h4 class="font-semibold text-indigo-800 mb-2">🐍 Python SDK Code</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <div class="text-xs font-medium text-blue-700 mb-1">DI Prebuilt</div>
+                        <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-python">poller = client.begin_analyze_document(
+    model_id="prebuilt-invoice",
+    body=AnalyzeDocumentRequest(
+        bytes_source=file_bytes
+    ),
+)
+result = poller.result()
+
+# Access extracted fields
+for field_name, field in result.documents[0].fields.items():
+    print(f"{field_name}: {field.value} ({field.confidence:.0%})")</code></pre>
+                    </div>
+                    <div>
+                        <div class="text-xs font-medium text-purple-700 mb-1">CU Prebuilt</div>
+                        <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-python">poller = client.begin_analyze(
+    analyzer_id="prebuilt-invoice",
+    body=file_bytes,
+    content_type="application/octet-stream",
+)
+result = poller.result()
+
+# Access extracted fields
+for content in result["contents"]:
+    for field_name, field in content["fields"].items():
+        print(f"{field_name}: {field['valueString']} ({field['confidence']:.0%})")</code></pre>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h4 class="font-semibold text-indigo-800 mb-2">💰 Pricing (per page)</h4>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div class="bg-white p-3 rounded border"><span class="text-blue-700 font-medium">DI Prebuilt:</span> $0.01/page</div>
+                    <div class="bg-white p-3 rounded border"><span class="text-purple-700 font-medium">CU Prebuilt:</span> $0.005/page</div>
+                </div>
+            </div>
+        </div>
+    </details>
 </div>
 {% endblock %}

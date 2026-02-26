@@ -68,9 +68,8 @@ def analyze_custom(
 
             poller = client.begin_analyze(
                 analyzer_id=analyzer_id,
-                analyze_request={"url": None},
-                content_type="application/octet-stream",
                 body=file_bytes,
+                content_type="application/octet-stream",
             )
             result = poller.result()
             trace.response_status = 200
@@ -99,9 +98,8 @@ def _analyze_prebuilt(analyzer_id: str, file_bytes: bytes, filename: str) -> dic
         try:
             poller = client.begin_analyze(
                 analyzer_id=analyzer_id,
-                analyze_request={"url": None},
-                content_type="application/octet-stream",
                 body=file_bytes,
+                content_type="application/octet-stream",
             )
             result = poller.result()
             trace.response_status = 200
@@ -142,13 +140,34 @@ def _ensure_analyzer(client: Any, analyzer_id: str, fields: list[dict[str, str]]
 
 
 def _result_to_dict(result: Any) -> dict[str, Any]:
-    """Convert CU SDK result to JSON-serializable dict."""
+    """Convert CU SDK result to JSON-serializable dict.
+
+    CU returns results in a ``contents`` array. We also synthesize a top-level
+    ``content`` string (aggregated markdown) so templates can use a consistent
+    ``result.content`` path for both DI and CU.
+    """
     try:
         if hasattr(result, "as_dict"):
-            return result.as_dict()  # type: ignore[no-any-return]
-        if hasattr(result, "__dict__"):
-            return json.loads(json.dumps(result.__dict__, default=str))
-        return {"raw": str(result)}
+            d: dict[str, Any] = result.as_dict()
+        elif hasattr(result, "__dict__"):
+            d = json.loads(json.dumps(result.__dict__, default=str))
+        else:
+            return {"raw": str(result)}
+
+        # Synthesize top-level ``content`` from contents[].markdown
+        if "contents" in d and "content" not in d:
+            markdowns = [c.get("markdown", "") for c in d["contents"] if c.get("markdown")]
+            if markdowns:
+                d["content"] = "\n\n".join(markdowns)
+
+        # Lift first content item's fields to top level for easy access
+        if "contents" in d and "fields" not in d:
+            for c in d["contents"]:
+                if c.get("fields"):
+                    d["fields"] = c["fields"]
+                    break
+
+        return d
     except Exception:
         return {"raw": str(result)}
 
