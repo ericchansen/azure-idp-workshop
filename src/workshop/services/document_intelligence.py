@@ -15,16 +15,26 @@ logger = logging.getLogger(__name__)
 def _get_client():  # type: ignore[no-untyped-def]
     """Lazy-initialize the DI client."""
     from azure.ai.documentintelligence import DocumentIntelligenceClient
-    from azure.core.credentials import AzureKeyCredential
 
     if not settings.ai_services_endpoint:
         raise RuntimeError("AI_SERVICES_ENDPOINT not configured")
 
-    credential = AzureKeyCredential(settings.ai_services_key)
+    credential = _get_credential()
     return DocumentIntelligenceClient(
         endpoint=settings.ai_services_endpoint,
         credential=credential,
     )
+
+
+def _get_credential():  # type: ignore[no-untyped-def]
+    """Return AzureKeyCredential if key set, else DefaultAzureCredential."""
+    if settings.ai_services_key:
+        from azure.core.credentials import AzureKeyCredential
+
+        return AzureKeyCredential(settings.ai_services_key)
+    from azure.identity import DefaultAzureCredential
+
+    return DefaultAzureCredential()
 
 
 def _make_request(file_bytes: bytes):  # type: ignore[no-untyped-def]

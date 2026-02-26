@@ -151,15 +151,13 @@ module app 'modules/container-app.bicep' = if (!empty(containerImage)) {
     tags: union(tags, { environment: environmentName })
     minReplicas: environmentName == 'prod' ? 1 : 0
     maxReplicas: environmentName == 'prod' ? 3 : 1
-    secrets: [
-      { name: 'ai-key', value: aiServices.outputs.key }
-    ]
+    secrets: []
     envVars: [
       { name: 'ENVIRONMENT', value: environmentName }
       { name: 'AI_SERVICES_ENDPOINT', value: aiServices.outputs.endpoint }
-      { name: 'AI_SERVICES_KEY', secretRef: 'ai-key' }
       { name: 'STORAGE_ACCOUNT_URL', value: storage.outputs.blobEndpoint }
       { name: 'LOG_LEVEL', value: environmentName == 'prod' ? 'INFO' : 'DEBUG' }
+      { name: 'AZURE_CLIENT_ID', value: identity.properties.clientId }
     ]
   }
 }
@@ -167,5 +165,5 @@ module app 'modules/container-app.bicep' = if (!empty(containerImage)) {
 // ── Outputs ─────────────────────────────────────────────────────────────────
 
 output acrLoginServer string = acr.outputs.acrLoginServer
-output appUrl string = !empty(containerImage) ? app.outputs.appUrl : ''
-output appFqdn string = !empty(containerImage) ? app.outputs.appFqdn : ''
+output appUrl string = !empty(containerImage) ? app.outputs.appUrl! : ''
+output appFqdn string = !empty(containerImage) ? app.outputs.appFqdn! : ''

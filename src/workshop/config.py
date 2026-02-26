@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     # Azure AI Services (Foundry resource — supports both CU and DI)
     ai_services_endpoint: str = ""
-    ai_services_key: str = ""
+    ai_services_key: str = ""  # Optional — uses DefaultAzureCredential if empty
 
     # Azure Storage
     storage_account_url: str = ""

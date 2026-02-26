@@ -59,5 +59,4 @@ resource embedding 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01'
 }
 
 output endpoint string = aiServices.properties.endpoint
-output key string = aiServices.listKeys().key1
 output name string = aiServices.name

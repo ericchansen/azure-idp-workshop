@@ -16,16 +16,26 @@ logger = logging.getLogger(__name__)
 def _get_client():  # type: ignore[no-untyped-def]
     """Lazy-initialize the CU client."""
     from azure.ai.contentunderstanding import ContentUnderstandingClient
-    from azure.core.credentials import AzureKeyCredential
 
     if not settings.ai_services_endpoint:
         raise RuntimeError("AI_SERVICES_ENDPOINT not configured")
 
-    credential = AzureKeyCredential(settings.ai_services_key)
+    credential = _get_credential()
     return ContentUnderstandingClient(
         endpoint=settings.ai_services_endpoint,
         credential=credential,
     )
+
+
+def _get_credential():  # type: ignore[no-untyped-def]
+    """Return AzureKeyCredential if key set, else DefaultAzureCredential."""
+    if settings.ai_services_key:
+        from azure.core.credentials import AzureKeyCredential
+
+        return AzureKeyCredential(settings.ai_services_key)
+    from azure.identity import DefaultAzureCredential
+
+    return DefaultAzureCredential()
 
 
 def analyze_layout(file_bytes: bytes, filename: str) -> dict[str, Any]:
