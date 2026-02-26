@@ -40,3 +40,8 @@ Thumbs.db
 
 # UV
 .uv/
+
+# Node / Playwright
+node_modules/
+playwright-report/
+test-results/

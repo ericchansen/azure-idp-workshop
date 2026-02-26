@@ -1,0 +1,27 @@
+{
+  "name": "azure-idp-workshop",
+  "version": "1.0.0",
+  "description": "Interactive zero-to-hero workshop comparing **Azure Document Intelligence (DI)** and **Azure Content Understanding (CU)**.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ericchansen/azure-idp-workshop.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ericchansen/azure-idp-workshop/issues"
+  },
+  "homepage": "https://github.com/ericchansen/azure-idp-workshop#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}
