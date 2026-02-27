@@ -220,3 +220,43 @@ def test_summarize_cu_result_empty() -> None:
     """_summarize_cu_result handles empty result."""
     summary = _summarize_cu_result({})
     assert summary == {}
+
+
+def test_result_to_dict_lifts_usage() -> None:
+    """_result_to_dict lifts usage data from contents to top level."""
+    mock_obj = MagicMock()
+    mock_obj.as_dict.return_value = {
+        "contents": [
+            {
+                "markdown": "Some text",
+                "usage": {"promptTokens": 150, "completionTokens": 50},
+            }
+        ],
+    }
+    result = _result_to_dict(mock_obj)
+    assert "usage" in result
+    assert result["usage"]["promptTokens"] == 150
+    assert result["usage"]["completionTokens"] == 50
+
+
+def test_result_to_dict_preserves_top_level_usage() -> None:
+    """_result_to_dict does not overwrite existing top-level usage."""
+    mock_obj = MagicMock()
+    mock_obj.as_dict.return_value = {
+        "usage": {"promptTokens": 200, "completionTokens": 100},
+        "contents": [
+            {"usage": {"promptTokens": 10, "completionTokens": 5}},
+        ],
+    }
+    result = _result_to_dict(mock_obj)
+    assert result["usage"]["promptTokens"] == 200
+
+
+def test_summarize_cu_result_with_usage() -> None:
+    """_summarize_cu_result includes usage/token data in summary."""
+    result = {
+        "usage": {"promptTokens": 150, "completionTokens": 50},
+    }
+    summary = _summarize_cu_result(result)
+    assert "usage" in summary
+    assert summary["usage"]["promptTokens"] == 150

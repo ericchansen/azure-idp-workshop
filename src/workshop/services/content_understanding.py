@@ -167,6 +167,13 @@ def _result_to_dict(result: Any) -> dict[str, Any]:
                     d["fields"] = c["fields"]
                     break
 
+        # Lift usage/token data to top level if present in contents
+        if "usage" not in d:
+            for c in d.get("contents", []):
+                if c.get("usage"):
+                    d["usage"] = c["usage"]
+                    break
+
         return d
     except Exception:
         return {"raw": str(result)}
@@ -188,4 +195,6 @@ def _summarize_cu_result(result: dict[str, Any]) -> dict[str, Any]:
             }
             for k, v in result["fields"].items()
         }
+    if "usage" in result:
+        summary["usage"] = result["usage"]
     return summary
