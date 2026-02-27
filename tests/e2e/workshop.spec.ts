@@ -1,7 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./helpers";
 
 test.describe("Homepage", () => {
-  test("loads and shows module cards", async ({ page }) => {
+  test("loads and shows module cards", async ({ page, consoleErrors }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/IDP Workshop/);
     // Nav links exist
@@ -28,7 +28,7 @@ test.describe("Homepage", () => {
 });
 
 test.describe("Module 1 — OCR & Layout", () => {
-  test("page loads with document picker", async ({ page }) => {
+  test("page loads with document picker", async ({ page, consoleErrors }) => {
     await page.goto("/module/1");
     await expect(
       page.getByRole("heading", { name: /Module 1.*Reading Documents/ })
@@ -37,13 +37,13 @@ test.describe("Module 1 — OCR & Layout", () => {
     await expect(page.getByRole("button", { name: "Receipt" })).toBeVisible();
   });
 
-  test("selecting sample shows document preview", async ({ page }) => {
+  test("selecting sample shows document preview", async ({ page, consoleErrors }) => {
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
     await expect(page.getByText("Source Document")).toBeVisible();
   });
 
-  test("Behind the Scenes panel expands", async ({ page }) => {
+  test("Behind the Scenes panel expands", async ({ page, consoleErrors }) => {
     await page.goto("/module/1");
     const details = page.locator("details", {
       hasText: "Behind the Scenes",
@@ -57,7 +57,7 @@ test.describe("Module 1 — OCR & Layout", () => {
 });
 
 test.describe("Module 2 — Prebuilt Models", () => {
-  test("page loads with model picker", async ({ page }) => {
+  test("page loads with model picker", async ({ page, consoleErrors }) => {
     await page.goto("/module/2");
     await expect(
       page.getByRole("heading", { name: /Module 2.*Prebuilt Models/ })
@@ -66,7 +66,7 @@ test.describe("Module 2 — Prebuilt Models", () => {
     await expect(page.getByRole("button", { name: "Receipt" })).toBeVisible();
   });
 
-  test("Behind the Scenes panel works", async ({ page }) => {
+  test("Behind the Scenes panel works", async ({ page, consoleErrors }) => {
     await page.goto("/module/2");
     const details = page.locator("details", {
       hasText: "Behind the Scenes",
@@ -77,7 +77,7 @@ test.describe("Module 2 — Prebuilt Models", () => {
 });
 
 test.describe("Module 3 — Custom Fields", () => {
-  test("page loads with field definitions", async ({ page }) => {
+  test("page loads with field definitions", async ({ page, consoleErrors }) => {
     await page.goto("/module/3");
     await expect(
       page.getByRole("heading", { name: /Module 3.*Custom/ })
@@ -90,14 +90,14 @@ test.describe("Module 3 — Custom Fields", () => {
     ).toBeVisible();
   });
 
-  test("contract document preview loads", async ({ page }) => {
+  test("contract document preview loads", async ({ page, consoleErrors }) => {
     await page.goto("/module/3");
     await expect(
       page.getByText("Source Document", { exact: false })
     ).toBeVisible();
   });
 
-  test("Behind the Scenes shows CU custom info", async ({ page }) => {
+  test("Behind the Scenes shows CU custom info", async ({ page, consoleErrors }) => {
     await page.goto("/module/3");
     const details = page.locator("details", {
       hasText: "Behind the Scenes",
@@ -108,7 +108,7 @@ test.describe("Module 3 — Custom Fields", () => {
 });
 
 test.describe("Decision Guide", () => {
-  test("page loads", async ({ page }) => {
+  test("page loads", async ({ page, consoleErrors }) => {
     await page.goto("/guide");
     await expect(
       page.getByRole("heading", { name: /Decision Guide/ })

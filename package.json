@@ -7,7 +7,10 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx playwright test --grep-invert Smoke",
+    "test:smoke": "npx playwright test --grep Smoke",
+    "test:e2e": "npx playwright test",
+    "test:all": "npx playwright test"
   },
   "repository": {
     "type": "git",
