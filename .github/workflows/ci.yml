@@ -59,14 +59,41 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install dependencies
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: uv sync --frozen
+
+      - name: Install Node dependencies
         run: npm ci
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium msedge
 
+      - name: Start local server
+        run: |
+          uv run uvicorn workshop.server:app --host 0.0.0.0 --port 8080 &
+          echo "Waiting for server..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/api/health >/dev/null 2>&1; then
+              echo "✅ Server is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ Server failed to start"
+          exit 1
+
       - name: Run structural E2E tests (mocked)
         run: npx playwright test --grep-invert Smoke --project="Desktop Edge"
+        env:
+          BASE_URL: http://localhost:8080
 
       - name: Upload Playwright report
         if: always()
