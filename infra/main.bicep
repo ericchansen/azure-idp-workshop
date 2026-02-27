@@ -149,6 +149,7 @@ module app 'modules/container-app.bicep' = if (!empty(containerImage)) {
     acrLoginServer: acr.outputs.acrLoginServer
     userAssignedIdentityId: identity.id
     tags: union(tags, { environment: environmentName })
+    activeRevisionsMode: 'Multiple'
     minReplicas: environmentName == 'prod' ? 1 : 0
     maxReplicas: environmentName == 'prod' ? 3 : 1
     secrets: []

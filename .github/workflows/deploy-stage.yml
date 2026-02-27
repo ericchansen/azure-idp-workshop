@@ -40,6 +40,14 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Ensure multi-revision mode
+        run: |
+          az containerapp revision set-mode \
+            --name ${{ env.CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --mode multiple \
+            --output none
+
       - name: Set image tag
         id: vars
         run: |
@@ -77,6 +85,19 @@ jobs:
           SHORT_SHA=${{ steps.vars.outputs.short_sha }}
           REVISION_SUFFIX="pr-${PR_NUM}-${SHORT_SHA}"
 
+          # Capture the current production revision before creating the PR revision
+          PROD_REVISION=$(az containerapp ingress traffic show \
+            --name ${{ env.CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "[?weight==\`100\`].revisionName | [0]" -o tsv 2>/dev/null || true)
+          if [ -z "$PROD_REVISION" ]; then
+            PROD_REVISION=$(az containerapp revision list \
+              --name ${{ env.CONTAINERAPP_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --query "sort_by([?properties.active], &properties.createdTime)[-1].name" -o tsv)
+          fi
+          echo "Production revision: $PROD_REVISION"
+
           az containerapp update \
             --name ${{ env.CONTAINERAPP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
@@ -84,7 +105,16 @@ jobs:
             --revision-suffix "$REVISION_SUFFIX" \
             --output none
 
-          # Set the new revision to 0% traffic (label-only)
+          # Ensure production revision keeps 100% traffic
+          if [ -n "$PROD_REVISION" ]; then
+            az containerapp ingress traffic set \
+              --name ${{ env.CONTAINERAPP_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --revision-weight "$PROD_REVISION=100" \
+              --output none || true
+          fi
+
+          # Assign label for direct URL routing
           REVISION_NAME="${{ env.CONTAINERAPP_NAME }}--${REVISION_SUFFIX}"
           az containerapp revision label add \
             --name ${{ env.CONTAINERAPP_NAME }} \
