@@ -129,6 +129,7 @@ def _summarize_result(result: dict[str, Any]) -> dict[str, Any]:
         if result["documents"]:
             doc = result["documents"][0]
             summary["doc_type"] = doc.get("docType", "unknown")
+            summary["confidence"] = doc.get("confidence")
             summary["fields"] = {
                 k: {
                     "value": str(v.get("content", v.get("value", "")))[:100],
