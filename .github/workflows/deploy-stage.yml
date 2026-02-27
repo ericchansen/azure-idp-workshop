@@ -53,7 +53,7 @@ jobs:
           docker build -t ${{ steps.vars.outputs.image_ref }} .
           docker push ${{ steps.vars.outputs.image_ref }}
 
-      - name: Deactivate previous PR revision
+      - name: Deactivate previous PR revisions
         continue-on-error: true
         run: |
           REVISIONS=$(az containerapp revision list \
@@ -68,18 +68,42 @@ jobs:
               --revision "$REV" || true
           done
 
-      - name: Create review revision
-        uses: Azure/aca-review-apps@v0.2.0
+      - name: Deploy preview revision
         id: review
-        with:
-          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
-          name: ${{ env.CONTAINERAPP_NAME }}
-          revision-name-suffix: pr-${{ github.event.pull_request.number }}
-          image: ${{ steps.vars.outputs.image_ref }}
+        run: |
+          PR_NUM=${{ github.event.pull_request.number }}
+          SHORT_SHA=${{ steps.vars.outputs.short_sha }}
+          REVISION_SUFFIX="pr-${PR_NUM}-${SHORT_SHA}"
+
+          az containerapp update \
+            --name ${{ env.CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ steps.vars.outputs.image_ref }} \
+            --revision-suffix "$REVISION_SUFFIX" \
+            --output none
+
+          # Set the new revision to 0% traffic (label-only)
+          REVISION_NAME="${{ env.CONTAINERAPP_NAME }}--${REVISION_SUFFIX}"
+          az containerapp revision label add \
+            --name ${{ env.CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --label "pr-${PR_NUM}" \
+            --revision "$REVISION_NAME" \
+            --no-prompt --output none || true
+
+          # Get the FQDN for the labeled revision
+          APP_FQDN=$(az containerapp show \
+            --name ${{ env.CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          PREVIEW_URL="https://${{ env.CONTAINERAPP_NAME }}---${REVISION_SUFFIX}.${APP_FQDN#*\.}"
+
+          echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+          echo "Preview URL: $PREVIEW_URL"
 
       - name: Wait for revision health
         run: |
-          PREVIEW_URL="${{ steps.review.outputs.app-url }}"
+          PREVIEW_URL="${{ steps.review.outputs.preview_url }}"
           echo "Preview URL: $PREVIEW_URL"
           for i in {1..30}; do
             if curl -sf "${PREVIEW_URL}/api/health" >/dev/null 2>&1; then
@@ -95,7 +119,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const url = '${{ steps.review.outputs.app-url }}';
+            const url = '${{ steps.review.outputs.preview_url }}';
             const sha = '${{ github.sha }}'.substring(0, 7);
             const marker = '## 🚀 PR Preview';
             const body = [
@@ -126,7 +150,7 @@ jobs:
         run: |
           echo "## 🚀 PR Preview Deployed" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "**URL:** ${{ steps.review.outputs.app-url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**URL:** ${{ steps.review.outputs.preview_url }}" >> "$GITHUB_STEP_SUMMARY"
           echo "**Commit:** \`${GITHUB_SHA:0:7}\`" >> "$GITHUB_STEP_SUMMARY"
 
   deactivate:
@@ -143,14 +167,19 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deactivate review revision
-        uses: Azure/aca-review-apps@v0.2.0
-        with:
-          resource-group: ${{ env.AZURE_RESOURCE_GROUP }}
-          name: ${{ env.CONTAINERAPP_NAME }}
-          revision-name-suffix: pr-${{ github.event.pull_request.number }}
-          deactivate-revision-mode: true
-          image: "IGNORED_IN_DEACTIVATION_MODE"
+      - name: Deactivate review revisions
+        run: |
+          REVISIONS=$(az containerapp revision list \
+            --name ${{ env.CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "[?contains(name, '--pr-${{ github.event.pull_request.number }}')].name" -o tsv)
+          for REV in $REVISIONS; do
+            echo "Deactivating revision: $REV"
+            az containerapp revision deactivate \
+              --name ${{ env.CONTAINERAPP_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --revision "$REV" || true
+          done
 
       - name: Update PR comment
         uses: actions/github-script@v7
