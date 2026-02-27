@@ -118,7 +118,7 @@ function mockErrorRoute(
 }
 
 // ============================================================
-// Module 1 — Layout Analysis
+// Module 1 — Structured Extraction
 // ============================================================
 
 test.describe("Module 1 — Analysis Workflow", () => {
@@ -169,31 +169,31 @@ test.describe("Module 1 — Analysis Workflow", () => {
 });
 
 // ============================================================
-// Module 2 — Prebuilt Models
+// Module 2 — Unstructured Documents (DI Layout vs CU Custom)
 // ============================================================
 
 test.describe("Module 2 — Analysis Workflow", () => {
-  test("analyze invoice shows prebuilt field extraction", async ({ page, consoleErrors }) => {
-    await page.route("**/api/di/prebuilt/*", (route) =>
-      mockRoute(route, mockDIPrebuiltResult)
+  test("analyze contract shows DI layout vs CU custom extraction", async ({ page, consoleErrors }) => {
+    await page.route("**/api/di/layout*", (route) =>
+      mockRoute(route, mockDILayoutResult)
     );
-    await page.route("**/api/cu/prebuilt/*", (route) =>
-      mockRoute(route, mockCUPrebuiltResult)
+    await page.route("**/api/cu/custom*", (route) =>
+      mockRoute(route, mockCUCustomResult)
     );
 
     await page.goto("/module/2");
-    await page.getByRole("button", { name: "Invoice" }).click();
-    await page.getByRole("button", { name: /Run Both DI/i }).click();
+    await page.getByRole("button", { name: "Contract" }).click();
+    await page.getByRole("button", { name: /Compare|Analyze|Run/i }).click();
 
     await expect(
-      page.getByText("Document Intelligence").first()
+      page.getByText("DI — Raw Layout Extraction").first()
     ).toBeVisible();
     await expect(
-      page.getByText("Content Understanding").first()
+      page.getByText("CU — Semantic Extraction").first()
     ).toBeVisible();
 
-    // Fields should be visible
-    await expect(page.getByText("VendorName").first()).toBeVisible();
+    // CU should show semantic fields that DI cannot extract
+    await expect(page.getByText("summary").first()).toBeVisible();
     await expect(page.getByText("Analysis Failed")).not.toBeVisible();
   });
 });
@@ -265,16 +265,16 @@ test.describe("Error Resilience — Server Errors", () => {
   });
 
   test("Module 2: 500 plain text shows actual error", async ({ page, consoleErrors }) => {
-    await page.route("**/api/di/prebuilt/*", (route) =>
+    await page.route("**/api/di/layout*", (route) =>
       mockErrorRoute(route, "Service Unavailable", 503)
     );
-    await page.route("**/api/cu/prebuilt/*", (route) =>
+    await page.route("**/api/cu/custom*", (route) =>
       mockErrorRoute(route, "Service Unavailable", 503)
     );
 
     await page.goto("/module/2");
-    await page.getByRole("button", { name: "Invoice" }).click();
-    await page.getByRole("button", { name: /Run Both DI/i }).click();
+    await page.getByRole("button", { name: "Contract" }).click();
+    await page.getByRole("button", { name: /Compare|Analyze|Run/i }).click();
 
     await expect(page.getByText("Service Unavailable").first()).toBeVisible();
     await expect(page.getByText("Unexpected token")).not.toBeVisible();

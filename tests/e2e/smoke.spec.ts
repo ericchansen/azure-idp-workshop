@@ -34,10 +34,10 @@ test.describe("Smoke: Homepage", () => {
 });
 
 // ============================================================
-// Module 1 — Layout Analysis (Live)
+// Module 1 — Structured Extraction (Live)
 // ============================================================
 
-test.describe("Smoke: Module 1 — Layout Analysis", () => {
+test.describe("Smoke: Module 1 — Structured Extraction", () => {
   test("receipt: analyze produces real results, no errors", async ({ page, consoleErrors }) => {
     await page.goto("/module/1");
 
@@ -84,38 +84,27 @@ test.describe("Smoke: Module 1 — Layout Analysis", () => {
 });
 
 // ============================================================
-// Module 2 — Prebuilt Models (Live)
+// Module 2 — Unstructured Documents (Live)
 // ============================================================
 
-test.describe("Smoke: Module 2 — Prebuilt Models", () => {
-  test("invoice: prebuilt extraction works, fields visible", async ({ page, consoleErrors }) => {
+test.describe("Smoke: Module 2 — Unstructured Documents", () => {
+  test("contract: DI layout vs CU custom, both produce results", async ({ page, consoleErrors }) => {
     await page.goto("/module/2");
 
-    await page.getByRole("button", { name: "Invoice" }).click();
-    await page.getByRole("button", { name: /Run Both/i }).click();
+    await page.getByRole("button", { name: "Contract" }).click();
+    await page.getByRole("button", { name: /Compare|Analyze|Run/i }).click();
 
-    await waitForAnalysisComplete(page);
+    // Wait for both result sections (Module 2 uses "DI —" and "CU —" headings)
+    await expect(
+      page.getByText(/DI — Raw Layout|CU — Semantic/).first()
+    ).toBeVisible({ timeout: 45_000 });
 
     // Both services should show results
-    await expect(page.getByText("Document Intelligence").first()).toBeVisible();
-    await expect(page.getByText("Content Understanding").first()).toBeVisible();
+    await expect(page.getByText("DI — Raw Layout Extraction").first()).toBeVisible();
+    await expect(page.getByText("CU — Semantic Extraction").first()).toBeVisible();
 
-    // Prebuilt fields should be extracted
-    await expect(page.getByText("VendorName").first()).toBeVisible();
-
-    await assertNoErrorBanners(page);
-  });
-
-  test("receipt: prebuilt extraction works, no errors", async ({ page, consoleErrors }) => {
-    await page.goto("/module/2");
-
-    await page.getByRole("button", { name: "Receipt" }).click();
-    await page.getByRole("button", { name: /Run Both/i }).click();
-
-    await waitForAnalysisComplete(page);
-
-    await expect(page.getByText("Document Intelligence").first()).toBeVisible();
-    await expect(page.getByText("Content Understanding").first()).toBeVisible();
+    // CU should extract semantic fields that DI cannot
+    await expect(page.getByText("summary").first()).toBeVisible();
 
     await assertNoErrorBanners(page);
   });
@@ -125,7 +114,7 @@ test.describe("Smoke: Module 2 — Prebuilt Models", () => {
 // Module 3 — Custom Fields (Live)
 // ============================================================
 
-test.describe("Smoke: Module 3 — Custom Fields", () => {
+test.describe("Smoke: Module 3 — Custom & Inferred Fields", () => {
   test("contract: custom field extraction works", async ({ page, consoleErrors }) => {
     await page.goto("/module/3");
 

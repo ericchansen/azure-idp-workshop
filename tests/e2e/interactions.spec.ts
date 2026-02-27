@@ -227,7 +227,7 @@ test.describe("Module 1 — UI Interactions", () => {
 
     // Teaching point should appear
     await expect(page.getByText("What to Notice")).toBeVisible();
-    await expect(page.getByText("Both services extract text accurately")).toBeVisible();
+    await expect(page.getByText("DI is built for structured")).toBeVisible();
   });
 
   test("Formatted/Raw toggle switches CU result view", async ({ page, consoleErrors }) => {
@@ -283,37 +283,19 @@ test.describe("Module 1 — UI Interactions", () => {
 });
 
 // ============================================================
-// Module 2 — Model Picker Auto-Selection
+// Module 2 — Document Selection
 // ============================================================
 
 test.describe("Module 2 — UI Interactions", () => {
-  test("selecting Invoice auto-selects invoice.pdf sample", async ({ page, consoleErrors }) => {
+  test("selecting Contract shows contract document", async ({ page, consoleErrors }) => {
     await page.goto("/module/2");
-    await page.getByRole("button", { name: "Invoice" }).click();
-    await expect(page.getByText("invoice.pdf")).toBeVisible();
+    await page.getByRole("button", { name: "Contract" }).click();
+    await expect(page.getByText("contract.txt")).toBeVisible();
   });
 
-  test("selecting Receipt auto-selects receipt.png sample", async ({ page, consoleErrors }) => {
+  test("analyze button is visible", async ({ page, consoleErrors }) => {
     await page.goto("/module/2");
-    await page.getByRole("button", { name: "Receipt" }).click();
-    await expect(page.getByText("receipt.png")).toBeVisible();
-  });
-
-  test("switching model changes both model and sample", async ({ page, consoleErrors }) => {
-    await page.goto("/module/2");
-    // Select Invoice first
-    await page.getByRole("button", { name: "Invoice" }).click();
-    await expect(page.getByText("invoice.pdf")).toBeVisible();
-
-    // Switch to Receipt
-    await page.getByRole("button", { name: "Receipt" }).click();
-    await expect(page.getByText("receipt.png")).toBeVisible();
-  });
-
-  test("analyze button is disabled without selection", async ({ page, consoleErrors }) => {
-    await page.goto("/module/2");
-    // Run button should exist but we need a model selected
-    const runButton = page.getByRole("button", { name: /Run Both DI/i });
+    const runButton = page.getByRole("button", { name: /Compare|Analyze|Run/i });
     await expect(runButton).toBeVisible();
   });
 });
@@ -443,20 +425,20 @@ test.describe("Decision Guide — Interactive Tree", () => {
 
 test.describe("Module 2 — API Trace & Teaching Point", () => {
   test.beforeEach(async ({ page }) => {
-    await page.route("**/api/di/prebuilt/*", (route) =>
-      mockRoute(route, mockDIPrebuiltResult)
+    await page.route("**/api/di/layout*", (route) =>
+      mockRoute(route, mockDILayoutResult)
     );
-    await page.route("**/api/cu/prebuilt/*", (route) =>
-      mockRoute(route, mockCUPrebuiltResult)
+    await page.route("**/api/cu/custom*", (route) =>
+      mockRoute(route, mockCUCustomResult)
     );
   });
 
   test("DI API Trace details toggle expands and shows trace data", async ({ page, consoleErrors }) => {
     await page.goto("/module/2");
-    await page.getByRole("button", { name: "Invoice" }).click();
-    await page.getByRole("button", { name: /Run Both DI/i }).click();
+    await page.getByRole("button", { name: "Contract" }).click();
+    await page.getByRole("button", { name: /Compare|Analyze|Run/i }).click();
 
-    await expect(page.getByText("Document Intelligence").first()).toBeVisible();
+    await expect(page.getByText("DI — Raw Layout Extraction").first()).toBeVisible();
 
     // Click DI API Trace (first trace toggle)
     const diTrace = page.locator("details", { hasText: "API Trace" }).first();
@@ -467,10 +449,10 @@ test.describe("Module 2 — API Trace & Teaching Point", () => {
 
   test("CU API Trace details toggle expands and shows trace data", async ({ page, consoleErrors }) => {
     await page.goto("/module/2");
-    await page.getByRole("button", { name: "Invoice" }).click();
-    await page.getByRole("button", { name: /Run Both DI/i }).click();
+    await page.getByRole("button", { name: "Contract" }).click();
+    await page.getByRole("button", { name: /Compare|Analyze|Run/i }).click();
 
-    await expect(page.getByText("Content Understanding").first()).toBeVisible();
+    await expect(page.getByText("CU — Semantic Extraction").first()).toBeVisible();
 
     // Click CU API Trace (second trace toggle)
     const cuTrace = page.locator("details", { hasText: "API Trace" }).nth(1);
@@ -481,14 +463,13 @@ test.describe("Module 2 — API Trace & Teaching Point", () => {
 
   test("teaching point appears after both results", async ({ page, consoleErrors }) => {
     await page.goto("/module/2");
-    await page.getByRole("button", { name: "Invoice" }).click();
-    await page.getByRole("button", { name: /Run Both DI/i }).click();
+    await page.getByRole("button", { name: "Contract" }).click();
+    await page.getByRole("button", { name: /Compare|Analyze|Run/i }).click();
 
-    await expect(page.getByText("Document Intelligence").first()).toBeVisible();
-    await expect(page.getByText("Content Understanding").first()).toBeVisible();
+    await expect(page.getByText("DI — Raw Layout Extraction").first()).toBeVisible();
+    await expect(page.getByText("CU — Semantic Extraction").first()).toBeVisible();
 
     await expect(page.getByText("What to Notice")).toBeVisible();
-    await expect(page.getByText("Both services extract the same fields")).toBeVisible();
   });
 });
 
@@ -632,14 +613,14 @@ test.describe("Homepage — Navigation Interactions", () => {
     // Click Module 1 card (use main content area to avoid nav link ambiguity)
     await page.locator("main").getByRole("link", { name: /Module 1/ }).click();
     await expect(page).toHaveURL(/\/module\/1/);
-    await expect(page.getByRole("heading", { name: /OCR & Layout/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Structured Extraction/ })).toBeVisible();
   });
 
   test("Module 2 card navigates to /module/2", async ({ page, consoleErrors }) => {
     await page.goto("/");
     await page.locator("main").getByRole("link", { name: /Module 2/ }).click();
     await expect(page).toHaveURL(/\/module\/2/);
-    await expect(page.getByRole("heading", { name: /Prebuilt Models/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Module 2.*Unstructured/ })).toBeVisible();
   });
 
   test("Module 3 card navigates to /module/3", async ({ page, consoleErrors }) => {
