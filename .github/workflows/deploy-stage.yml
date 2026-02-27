@@ -96,7 +96,7 @@ jobs:
             --name ${{ env.CONTAINERAPP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query "properties.configuration.ingress.fqdn" -o tsv)
-          PREVIEW_URL="https://${{ env.CONTAINERAPP_NAME }}---${REVISION_SUFFIX}.${APP_FQDN#*\.}"
+          PREVIEW_URL="https://${{ env.CONTAINERAPP_NAME }}---pr-${PR_NUM}.${APP_FQDN#*\.}"
 
           echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
           echo "Preview URL: $PREVIEW_URL"
