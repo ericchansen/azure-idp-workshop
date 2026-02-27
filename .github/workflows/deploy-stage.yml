@@ -28,6 +28,8 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
+    outputs:
+      preview_url: ${{ steps.review.outputs.preview_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -152,6 +154,37 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**URL:** ${{ steps.review.outputs.preview_url }}" >> "$GITHUB_STEP_SUMMARY"
           echo "**Commit:** \`${GITHUB_SHA:0:7}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  e2e:
+    name: E2E Tests (Preview)
+    needs: deploy
+    if: needs.deploy.outputs.preview_url != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium msedge
+
+      - name: Run structural E2E tests against preview
+        run: npx playwright test --grep-invert Smoke --project="Desktop Edge"
+        env:
+          BASE_URL: ${{ needs.deploy.outputs.preview_url }}
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-staging
+          path: playwright-report/
+          retention-days: 14
 
   deactivate:
     name: Deactivate Preview
