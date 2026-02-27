@@ -26,6 +26,9 @@ param secrets array = []
 
 param tags object = {}
 
+@description('Active revisions mode: Single or Multiple')
+param activeRevisionsMode string = 'Single'
+
 @description('Minimum replicas (0 = scale to zero)')
 param minReplicas int = 0
 
@@ -45,7 +48,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   properties: {
     managedEnvironmentId: environmentId
     configuration: {
-      activeRevisionsMode: 'Single'
+      activeRevisionsMode: activeRevisionsMode
       ingress: {
         external: true
         targetPort: 8080
