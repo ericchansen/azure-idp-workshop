@@ -10,3 +10,7 @@ Azure IDP Workshop — interactive demo comparing Azure Document Intelligence (D
 - **Bishop's Module 3 Proposal**: Enhance with scenario variety (email, research paper, feedback, medical), add token/cost tracking to API trace.
 - **Key Teaching Principle**: Show DI and CU on same document in each module. Pedagogical flow: Structured (M1: DI wins) → Semantic (M2: CU wins) → Custom Intelligence (M3: CU's superpower).
 - Hicks should be aware Module 1 and 2 restructuring may affect template/test responsibilities.
+- **DI confidence architecture**: DI prebuilt models return confidence at two levels — document-level (`documents[].confidence`) and field-level (`documents[].fields.*.confidence`). Both are now surfaced in `_summarize_result` for API trace display.
+- **CU token/usage pattern**: CU SDK results may contain `usage` data (promptTokens, completionTokens) either at top level or nested in `contents[]` items. `_result_to_dict` lifts from contents to top level; `_summarize_cu_result` passes it through to API trace.
+- **No new endpoints needed**: Existing `/api/di/layout`, `/api/di/prebuilt/{model_id}`, `/api/cu/layout`, `/api/cu/custom` cover all Module 1-3 scenarios including contract extraction (Module 2).
+- **Backward-compatible changes only**: All enhancements add optional fields to existing responses — no removals, no structural changes.
