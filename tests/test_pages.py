@@ -18,7 +18,7 @@ def test_module_1_page(client):  # type: ignore[no-untyped-def]
 def test_module_2_page(client):  # type: ignore[no-untyped-def]
     resp = client.get("/module/2")
     assert resp.status_code == 200
-    assert "Prebuilt" in resp.text
+    assert "Unstructured" in resp.text
 
 
 def test_module_3_page(client):  # type: ignore[no-untyped-def]

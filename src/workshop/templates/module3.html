@@ -178,11 +178,12 @@
 
     <!-- Teaching point -->
     <div x-show="cuResult && diResult" class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-5">
-        <h3 class="font-semibold text-yellow-900 mb-2">💡 What to Notice</h3>
+        <h3 class="font-semibold text-yellow-900 mb-2">💡 What to Notice — CU's Superpower</h3>
         <ul class="text-sm text-yellow-800 space-y-1 list-disc list-inside">
+            <li><strong>This is CU's superpower: GenAI-powered semantic extraction on any document type.</strong> No predefined fields or training needed.</li>
             <li><strong>CU understands the document</strong> — it produces summaries, identifies parties, and assesses risk. DI just gives you the raw text.</li>
-            <li>The custom fields were defined by YOU — CU used GenAI to infer them. No training data needed.</li>
-            <li>This is where CU shines: <strong>unstructured, complex documents</strong> where the information you need isn't in predefined form fields.</li>
+            <li>The custom fields were defined by YOU — CU used GenAI to infer them. No model training, no labeled datasets.</li>
+            <li>DI cannot do this at all — it has no concept of "summarize" or "assess risk." That's the fundamental difference.</li>
             <li>CU's custom fields use your Foundry model deployment (GPT-4.1) — check the API trace for token usage and cost.</li>
         </ul>
     </div>
