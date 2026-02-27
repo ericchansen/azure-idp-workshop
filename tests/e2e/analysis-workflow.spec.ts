@@ -1,4 +1,5 @@
-import { test, expect, Route } from "@playwright/test";
+import { Route } from "@playwright/test";
+import { test, expect } from "./helpers";
 
 // --- Mock response fixtures ---
 
@@ -122,7 +123,7 @@ function mockErrorRoute(
 
 test.describe("Module 1 — Analysis Workflow", () => {
   test("analyze with mocked success shows DI and CU results", async ({
-    page,
+    page, consoleErrors,
   }) => {
     await page.route("**/api/di/layout*", (route) =>
       mockRoute(route, mockDILayoutResult)
@@ -150,7 +151,7 @@ test.describe("Module 1 — Analysis Workflow", () => {
     await expect(page.getByText("Analysis Failed")).not.toBeVisible();
   });
 
-  test("analyze shows API trace section", async ({ page }) => {
+  test("analyze shows API trace section", async ({ page, consoleErrors }) => {
     await page.route("**/api/di/layout*", (route) =>
       mockRoute(route, mockDILayoutResult)
     );
@@ -172,7 +173,7 @@ test.describe("Module 1 — Analysis Workflow", () => {
 // ============================================================
 
 test.describe("Module 2 — Analysis Workflow", () => {
-  test("analyze invoice shows prebuilt field extraction", async ({ page }) => {
+  test("analyze invoice shows prebuilt field extraction", async ({ page, consoleErrors }) => {
     await page.route("**/api/di/prebuilt/*", (route) =>
       mockRoute(route, mockDIPrebuiltResult)
     );
@@ -202,7 +203,7 @@ test.describe("Module 2 — Analysis Workflow", () => {
 // ============================================================
 
 test.describe("Module 3 — Analysis Workflow", () => {
-  test("analyze contract shows custom field extraction", async ({ page }) => {
+  test("analyze contract shows custom field extraction", async ({ page, consoleErrors }) => {
     await page.route("**/api/cu/custom*", (route) =>
       mockRoute(route, mockCUCustomResult)
     );
@@ -226,7 +227,7 @@ test.describe("Module 3 — Analysis Workflow", () => {
 
 test.describe("Error Resilience — Server Errors", () => {
   test("Module 1: 500 plain text shows actual error, not JSON parse error", async ({
-    page,
+    page, consoleErrors,
   }) => {
     await page.route("**/api/di/layout*", (route) =>
       mockErrorRoute(route, "Internal Server Error")
@@ -244,7 +245,7 @@ test.describe("Error Resilience — Server Errors", () => {
     await expect(page.getByText("Unexpected token")).not.toBeVisible();
   });
 
-  test("Module 1: HTML error page handled gracefully", async ({ page }) => {
+  test("Module 1: HTML error page handled gracefully", async ({ page, consoleErrors }) => {
     const htmlError =
       "<html><body><h1>502 Bad Gateway</h1><p>nginx</p></body></html>";
     await page.route("**/api/di/layout*", (route) =>
@@ -263,7 +264,7 @@ test.describe("Error Resilience — Server Errors", () => {
     await expect(page.getByText("Unexpected token")).not.toBeVisible();
   });
 
-  test("Module 2: 500 plain text shows actual error", async ({ page }) => {
+  test("Module 2: 500 plain text shows actual error", async ({ page, consoleErrors }) => {
     await page.route("**/api/di/prebuilt/*", (route) =>
       mockErrorRoute(route, "Service Unavailable", 503)
     );
@@ -279,7 +280,7 @@ test.describe("Error Resilience — Server Errors", () => {
     await expect(page.getByText("Unexpected token")).not.toBeVisible();
   });
 
-  test("Module 3: 500 on CU custom endpoint handled", async ({ page }) => {
+  test("Module 3: 500 on CU custom endpoint handled", async ({ page, consoleErrors }) => {
     await page.route("**/api/cu/custom*", (route) =>
       mockErrorRoute(route, "Gateway Timeout", 504)
     );
@@ -299,7 +300,7 @@ test.describe("Error Resilience — Server Errors", () => {
 
 test.describe("Error Resilience — Mixed Results", () => {
   test("Module 1: DI succeeds, CU fails — both render correctly", async ({
-    page,
+    page, consoleErrors,
   }) => {
     await page.route("**/api/di/layout*", (route) =>
       mockRoute(route, mockDILayoutResult)
@@ -321,7 +322,7 @@ test.describe("Error Resilience — Mixed Results", () => {
   });
 
   test("Module 1: CU succeeds, DI fails — both render correctly", async ({
-    page,
+    page, consoleErrors,
   }) => {
     await page.route("**/api/di/layout*", (route) =>
       mockErrorRoute(route, "DI service is down", 500)
