@@ -55,7 +55,7 @@ def analyze_custom(
     client = _get_client()
     trace = ApiTrace(service="CU", operation=f"custom/{analyzer_id}")
     trace.request_url = (
-        f"{settings.ai_services_endpoint}contentunderstanding/analyzers/{analyzer_id}:analyze"
+        f"{settings.ai_services_endpoint}contentunderstanding/analyzers/{analyzer_id}:analyzeBinary"
     )
     trace.request_method = "POST"
     trace.request_headers = sanitize_headers({"Content-Type": "application/octet-stream"})
@@ -66,9 +66,9 @@ def analyze_custom(
         try:
             _ensure_analyzer(client, analyzer_id, fields)
 
-            poller = client.begin_analyze(
+            poller = client.begin_analyze_binary(
                 analyzer_id=analyzer_id,
-                body=file_bytes,
+                binary_input=file_bytes,
                 content_type="application/octet-stream",
             )
             result = poller.result()
@@ -89,16 +89,16 @@ def _analyze_prebuilt(analyzer_id: str, file_bytes: bytes, filename: str) -> dic
     client = _get_client()
     trace = ApiTrace(service="CU", operation=analyzer_id)
     trace.request_url = (
-        f"{settings.ai_services_endpoint}contentunderstanding/analyzers/{analyzer_id}:analyze"
+        f"{settings.ai_services_endpoint}contentunderstanding/analyzers/{analyzer_id}:analyzeBinary"
     )
     trace.request_method = "POST"
     trace.request_headers = sanitize_headers({"Content-Type": "application/octet-stream"})
 
     with TraceTimer() as timer:
         try:
-            poller = client.begin_analyze(
+            poller = client.begin_analyze_binary(
                 analyzer_id=analyzer_id,
-                body=file_bytes,
+                binary_input=file_bytes,
                 content_type="application/octet-stream",
             )
             result = poller.result()
