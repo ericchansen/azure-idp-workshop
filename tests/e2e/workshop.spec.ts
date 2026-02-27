@@ -27,11 +27,11 @@ test.describe("Homepage", () => {
   });
 });
 
-test.describe("Module 1 — OCR & Layout", () => {
+test.describe("Module 1 — Structured Extraction", () => {
   test("page loads with document picker", async ({ page, consoleErrors }) => {
     await page.goto("/module/1");
     await expect(
-      page.getByRole("heading", { name: /Module 1.*Reading Documents/ })
+      page.getByRole("heading", { name: /Module 1.*Structured Extraction/ })
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Invoice" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Receipt" })).toBeVisible();
@@ -56,14 +56,13 @@ test.describe("Module 1 — OCR & Layout", () => {
   });
 });
 
-test.describe("Module 2 — Prebuilt Models", () => {
-  test("page loads with model picker", async ({ page, consoleErrors }) => {
+test.describe("Module 2 — Unstructured Documents", () => {
+  test("page loads with document picker", async ({ page, consoleErrors }) => {
     await page.goto("/module/2");
     await expect(
-      page.getByRole("heading", { name: /Module 2.*Prebuilt Models/ })
+      page.getByRole("heading", { name: /Module 2.*Unstructured/ })
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Invoice" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Receipt" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Contract" })).toBeVisible();
   });
 
   test("Behind the Scenes panel works", async ({ page, consoleErrors }) => {
@@ -76,7 +75,7 @@ test.describe("Module 2 — Prebuilt Models", () => {
   });
 });
 
-test.describe("Module 3 — Custom Fields", () => {
+test.describe("Module 3 — Custom & Inferred Fields", () => {
   test("page loads with field definitions", async ({ page, consoleErrors }) => {
     await page.goto("/module/3");
     await expect(
