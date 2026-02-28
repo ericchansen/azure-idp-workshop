@@ -123,7 +123,7 @@ def _ensure_analyzer(client: Any, analyzer_id: str, fields: list[dict[str, str]]
         analyzer_def: dict[str, Any] = {
             "description": f"Workshop custom analyzer: {analyzer_id}",
             "scenario": "document",
-            "baseAnalyzerId": "prebuilt-layout",
+            "baseAnalyzerId": "prebuilt-document",
         }
         if fields:
             analyzer_def["fieldSchema"] = {
