@@ -86,7 +86,7 @@ const mockCUCustomResult = {
     },
   },
   trace: {
-    url: "https://test.cognitiveservices.azure.com/contentunderstanding/analyzers/workshop-contract:analyze",
+    url: "https://test.cognitiveservices.azure.com/contentunderstanding/analyzers/workshopContract:analyze",
     method: "POST",
     response_status: 200,
     duration_ms: 2000,

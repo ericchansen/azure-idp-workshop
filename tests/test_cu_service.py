@@ -112,7 +112,7 @@ def test_analyze_custom_success(mock_get_client: MagicMock) -> None:
         {"name": "summary", "type": "string", "description": "Summary"},
         {"name": "risk_level", "type": "string", "description": "Risk level"},
     ]
-    result = analyze_custom("workshop-contract", b"bytes", "contract.txt", fields)
+    result = analyze_custom("workshopContract", b"bytes", "contract.txt", fields)
 
     assert result["trace"]["response"]["status"] == 200
 
@@ -146,7 +146,7 @@ def test_analyze_custom_exception(mock_get_client: MagicMock) -> None:
     mock_client.get_analyzer.return_value = MagicMock()
     mock_client.begin_analyze_binary.side_effect = Exception("Custom analyzer failed")
 
-    result = analyze_custom("workshop-contract", b"bytes", "doc.txt", None)
+    result = analyze_custom("workshopContract", b"bytes", "doc.txt", None)
 
     assert result["result"] == {}
     assert "Custom analyzer failed" in result["trace"]["error"]

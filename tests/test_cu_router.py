@@ -34,7 +34,7 @@ def test_cu_custom_accepts_json_body_with_sample(client):  # type: ignore[no-unt
             json={
                 "sample": "contract.pdf",
                 "fields": [{"name": "summary", "type": "string", "description": "A summary"}],
-                "analyzer_id": "workshop-contract",
+                "analyzer_id": "workshopContract",
             },
         )
 
