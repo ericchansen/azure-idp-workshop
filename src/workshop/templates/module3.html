@@ -32,7 +32,7 @@
         fetch('/api/cu/custom', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sample: this.selectedSample, fields: this.fields, analyzer_id: 'workshop-contract' })
+            body: JSON.stringify({ sample: this.selectedSample, fields: this.fields, analyzer_id: 'workshopContract' })
         })
         .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t || 'HTTP ' + r.status) }); return r.json(); })
         .then(d => { this.cuResult = d; this.cuDone = true; this.checkDone(); })
