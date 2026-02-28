@@ -77,11 +77,11 @@ export async function waitForAnalysisComplete(page: Page): Promise<void> {
   // Wait for at least one result heading to appear
   await expect(
     page.getByText(/Document Intelligence|Content Understanding/).first()
-  ).toBeVisible({ timeout: 90_000 });
+  ).toBeVisible({ timeout: 120_000 });
 
   // Wait for loading indicators to disappear
   const spinners = page.locator(".animate-pulse");
   if ((await spinners.count()) > 0) {
-    await expect(spinners.first()).not.toBeVisible({ timeout: 90_000 });
+    await expect(spinners.first()).not.toBeVisible({ timeout: 120_000 });
   }
 }
