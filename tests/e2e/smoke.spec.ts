@@ -94,17 +94,21 @@ test.describe("Smoke: Module 2 — Unstructured Documents", () => {
     await page.getByRole("button", { name: "Contract" }).click();
     await page.getByRole("button", { name: /Compare|Analyze|Run/i }).click();
 
-    // Wait for both result sections (Module 2 uses "DI —" and "CU —" headings)
+    // Wait for DI results first (faster)
     await expect(
-      page.getByText(/DI — Raw Layout|CU — Semantic/).first()
+      page.getByText("DI — Raw Layout Extraction").first()
     ).toBeVisible({ timeout: 90_000 });
 
+    // Wait for CU spinner to disappear (CU custom analysis is slower)
+    await expect(
+      page.getByText(/Running CU/i).first()
+    ).toBeHidden({ timeout: 90_000 });
+
     // Both services should show results
-    await expect(page.getByText("DI — Raw Layout Extraction").first()).toBeVisible();
     await expect(page.getByText("CU — Semantic Extraction").first()).toBeVisible();
 
     // CU should extract semantic fields (purple field name cards)
-    await expect(page.locator(".text-purple-800").first()).toBeVisible();
+    await expect(page.locator(".text-purple-800").first()).toBeVisible({ timeout: 10_000 });
 
     await assertNoErrorBanners(page);
   });
