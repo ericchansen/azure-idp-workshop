@@ -37,3 +37,76 @@
 **Why:** `begin_analyze()` hits `:analyze` endpoint (expects JSON). Raw file bytes sent with `content_type="application/octet-stream"` were parsed as empty JSON, causing `ContentEmpty` / `InvalidRequest` errors. `begin_analyze_binary()` hits `:analyzeBinary` endpoint designed for octet-stream uploads.
 **Impact:** Fixes CU ContentEmpty errors across all modules (layout, prebuilt, custom). Both `_analyze_prebuilt()` and `analyze_custom()` updated. Trace metadata URLs updated. All unit test mocks updated.
 **Rule:** Always use `begin_analyze_binary()` when uploading raw file bytes to CU. The `begin_analyze()` method is for JSON-structured input only.
+
+---
+
+### 2026-02-28T02:51:00Z: CI/CD Deployment Patterns — Add `environment: production` to deploy-prod.yml
+**By:** Ripley (DevOps Lead)
+**Status:** Decision Ready
+**What:** Add single line `environment: production` to `.github/workflows/deploy-prod.yml` deploy job to enable GitHub deployment history visibility and optional approval gates.
+**Why:** teamskills repo uses GitHub Environments for deployment tracking and gating. azure-idp-workshop has no Environments defined. Adding `environment: production` makes production deployments visible in GitHub sidebar without changing workflow behavior or adding complexity.
+**Scope:** Production only. Do NOT add Environment to `deploy-stage.yml`—PR preview revisions are ephemeral (Container Apps multi-revision mode handles isolation).
+**Implementation:** One-line change to `deploy-prod.yml`. Benefits: deployment history visible in GitHub UI, scoped environment secrets capability, optional approval rules. No workflow logic changes, no cost impact.
+**Next Steps:** 
+1. Update `deploy-prod.yml` with `environment: production`
+2. Verify GitHub repo Settings > Environments exists
+3. Optional: Add deployment branch protection rule (e.g., require approval for prod, restrict to main)
+
+---
+
+### 2026-02-28T02:51:00Z: Backend Service Enhancements for Module Strategy
+**By:** Hicks (Backend Dev)
+**Status:** Implemented on `feat/module-strategy-restructure`
+**What:** Three backend enhancements to support Bishop's module strategy and Lambert's template work:
+1. **DI document-level confidence** — Added `confidence` field to `_summarize_result()` output (existing per-field confidence already present)
+2. **CU token usage lifting** — Modified `_result_to_dict()` to extract token counts from `contents[]` items to top-level `result.usage`
+3. **CU usage passthrough** — Updated `_summarize_cu_result()` to include `usage` in API trace summary
+**Why:** Module 1 now displays document-level DI confidence; Module 3 API trace now shows CU token counts for cost transparency.
+**Impact:** No new endpoints. No breaking changes (optional fields, backward-compatible). Lambert templates read `trace.response.body.confidence` (DI) and `trace.response.body.usage` (CU tokens). All 4 new unit tests passing.
+
+---
+
+### 2026-02-28T02:51:00Z: E2E Test Updates for Module Strategy
+**By:** Vasquez (Tester)
+**Status:** Applied on `feat/module-strategy-restructure`
+**What:** All 4 E2E test files updated to match new module strategy:
+- `workshop.spec.ts` — Module headings updated for all 3 modules
+- `analysis-workflow.spec.ts` — Module 2 routes changed from prebuilt to layout/custom; error resilience adjusted
+- `interactions.spec.ts` — Module 2 UI rewritten (Contract doc, Compare button); navigation assertions fixed
+- `smoke.spec.ts` — Module 2 smoke rewritten for DI layout vs CU custom flow
+**Key Decisions:** 
+- Module 2 mock routes: prebuilt → layout/custom
+- Button regex: `/Compare|Analyze|Run/i` for flexible matching
+- Module 2 smoke uses inline wait on layout/semantic headings (not shared helper)
+- Removed "same fields" assertion (Module 2 contrasts raw layout vs semantic)
+**Test Results:** 60 structural E2E ✅, 51 unit tests ✅. Smoke tests pending deployment.
+
+---
+
+### 2025-07-18T00:00:00Z: Module Template Restructure — Full Implementation
+**By:** Lambert (Frontend Dev)
+**Status:** Implemented on `feat/module-strategy-restructure`
+**What:** Implemented Bishop's module strategy proposal across all templates:
+- **Module 1** — Reframed as "Structured Extraction — When DI Wins"; teaching point emphasizes determinism, cost, speed
+- **Module 2** — Completely replaced prebuilt model comparison with DI layout vs CU semantic extraction on contract.txt; uses `/api/di/layout` + `/api/cu/custom`
+- **Module 3** — Enhanced teaching point; existing functionality preserved
+- Index + nav updated with new headlines and nav shortcuts
+**Design Decisions:**
+1. Module 2 reuses Module 3's CU custom pattern (pedagogical bridge: M2 introduces CU custom fields, M3 lets you define)
+2. Module 2 document picker simple (single contract.txt; can expand later)
+3. No Python changes—templates/tests only
+**Test Impact:** Unit test `test_module_2_page` updated; E2E assertions aligned.
+
+---
+
+### 2025-07-15T00:00:00Z: Enable Multi-Revision Mode for Container App
+**By:** Hicks (Backend Dev)
+**Status:** Implemented
+**What:** Switched Container App from `activeRevisionsMode: 'Single'` to `'Multiple'` to enable label-based PR preview URL routing.
+**Why:** Single-revision mode doesn't support label-based routing; PR URLs (`---pr-N`) were timing out. Multi-revision mode is the only mode supporting ACA label-based revision routing.
+**Changes:** 
+- Bicep: Added `activeRevisionsMode` parameter, set to `'Multiple'`
+- Staging workflow: Added `az containerapp revision set-mode` guard, explicit traffic pinning after PR revision creation
+- Prod workflow: Added explicit `latest=100` traffic routing post-Bicep deploy
+**Trade-offs:** Pro—PR preview URLs now work, prod traffic protected. Con—old revisions accumulate (deactivation logic handles). Risk—traffic split if `az containerapp ingress traffic set` fails (mitigated with `|| true`).
+**Impact:** Affects `infra/modules/container-app.bicep`, `infra/main.bicep`, `deploy-stage.yml`, `deploy-prod.yml`. No Python/template/test impact.
