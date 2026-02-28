@@ -124,6 +124,7 @@ def _ensure_analyzer(client: Any, analyzer_id: str, fields: list[dict[str, str]]
             "description": f"Workshop custom analyzer: {analyzer_id}",
             "scenario": "document",
             "baseAnalyzerId": "prebuilt-document",
+            "models": {"completion": "gpt-4.1"},
         }
         if fields:
             analyzer_def["fieldSchema"] = {
