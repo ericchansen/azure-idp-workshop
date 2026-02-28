@@ -80,7 +80,11 @@ class TestCUEndpointsReturnJSON:
 
     @pytest.mark.asyncio
     async def test_cu_custom_empty_body_returns_json(self, client):
-        resp = await client.post("/api/cu/custom")
+        resp = await client.post(
+            "/api/cu/custom",
+            content="{}",
+            headers={"content-type": "application/json"},
+        )
         assert resp.headers["content-type"].startswith("application/json")
         data = resp.json()
         assert isinstance(data, dict)

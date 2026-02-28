@@ -12,7 +12,7 @@
 
 <div x-data="{
     cuResult: null, diResult: null, loading: false,
-    selectedSample: 'contract.txt',
+    selectedSample: 'contract.pdf',
     cuDone: false, diDone: false, startTime: null, elapsed: '0.0', timer: null,
     hasError(r) { return r?.error || r?.trace?.error },
     getError(r) { return r?.error || r?.trace?.error },
@@ -89,15 +89,10 @@
 
     <!-- Document Preview -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 class="text-lg font-semibold mb-3">👁️ Source Document — contract.txt</h2>
-        <div class="border rounded-lg overflow-hidden bg-gray-100 p-4" style="max-height: 300px; overflow-y: auto;">
-            <pre class="text-xs whitespace-pre-wrap" id="contract-preview"></pre>
+        <h2 class="text-lg font-semibold mb-3">👁️ Source Document — <span x-text="selectedSample"></span></h2>
+        <div class="border rounded-lg overflow-hidden bg-gray-100" style="height: 300px;">
+            <iframe :src="'/api/documents/samples/' + selectedSample + '/raw'" class="w-full h-full"></iframe>
         </div>
-        <script>
-            fetch('/api/documents/samples/contract.txt/raw')
-                .then(r => r.text())
-                .then(t => { document.getElementById('contract-preview').textContent = t; });
-        </script>
     </div>
 
     <!-- Results -->

@@ -48,17 +48,20 @@ async def cu_prebuilt(
 
 
 @router.post("/custom")
-async def cu_custom(
-    file: UploadFile | None = None,
-    request: CustomAnalyzeRequest | None = None,
-) -> dict[str, Any]:
+async def cu_custom(request: CustomAnalyzeRequest) -> dict[str, Any]:
     """Run a CU custom analyzer with user-defined fields."""
-    if not request:
-        request = CustomAnalyzeRequest()
+    if not request.sample:
+        raise HTTPException(status_code=400, detail="Provide 'sample' name in request body")
 
-    file_bytes, filename = await _get_file_bytes(file, request.sample)
+    try:
+        file_bytes = read_sample(request.sample)
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404, detail=f"Sample '{request.sample}' not found"
+        ) from None
+
     fields = [f.model_dump() for f in request.fields] if request.fields else None
-    return cu_service.analyze_custom(request.analyzer_id, file_bytes, filename, fields)
+    return cu_service.analyze_custom(request.analyzer_id, file_bytes, request.sample, fields)
 
 
 async def _get_file_bytes(file: UploadFile | None, sample: str | None) -> tuple[bytes, str]:
