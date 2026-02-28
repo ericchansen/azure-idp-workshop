@@ -26,3 +26,10 @@ def test_get_sample_raw_pdf(client):  # type: ignore[no-untyped-def]
 def test_get_sample_raw_not_found(client):  # type: ignore[no-untyped-def]
     resp = client.get("/api/documents/samples/nonexistent.xyz/raw")
     assert resp.status_code == 404
+
+
+def test_get_sample_raw_contract_pdf(client):  # type: ignore[no-untyped-def]
+    resp = client.get("/api/documents/samples/contract.pdf/raw")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/pdf"
+    assert len(resp.content) > 0

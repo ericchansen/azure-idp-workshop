@@ -12,7 +12,7 @@
 
 <div x-data="{
     diResult: null, cuResult: null, loading: false,
-    selectedSample: 'contract.txt',
+    selectedSample: 'contract.pdf',
     diDone: false, cuDone: false, startTime: null, elapsed: '0.0', timer: null,
     hasError(r) { return r?.error || r?.trace?.error },
     getError(r) { return r?.error || r?.trace?.error },
@@ -48,10 +48,10 @@
     <div class="bg-white rounded-lg shadow p-6 mb-6">
         <h2 class="text-lg font-semibold mb-4">📄 Choose an Unstructured Document</h2>
         <div class="flex flex-wrap gap-3">
-            <button @click="selectedSample = 'contract.txt'"
-                :class="selectedSample === 'contract.txt' ? 'ring-2 ring-purple-500 bg-purple-50' : 'bg-gray-100 hover:bg-gray-200'"
+            <button @click="selectedSample = 'contract.pdf'"
+                :class="selectedSample === 'contract.pdf' ? 'ring-2 ring-purple-500 bg-purple-50' : 'bg-gray-100 hover:bg-gray-200'"
                 class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
-                📜 Contract (TXT)
+                📜 Contract (PDF)
             </button>
         </div>
         <p class="text-sm text-gray-500 mt-3">
@@ -85,14 +85,9 @@
     <!-- Document Preview -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
         <h2 class="text-lg font-semibold mb-3">👁️ Source Document — <span x-text="selectedSample"></span></h2>
-        <div class="border rounded-lg overflow-hidden bg-gray-100 p-4" style="max-height: 300px; overflow-y: auto;">
-            <pre class="text-xs whitespace-pre-wrap" id="m2-doc-preview"></pre>
+        <div class="border rounded-lg overflow-hidden bg-gray-100" style="height: 300px;">
+            <iframe :src="'/api/documents/samples/' + selectedSample + '/raw'" class="w-full h-full"></iframe>
         </div>
-        <script>
-            fetch('/api/documents/samples/contract.txt/raw')
-                .then(r => r.text())
-                .then(t => { document.getElementById('m2-doc-preview').textContent = t; });
-        </script>
     </div>
 
     <!-- Results side by side -->

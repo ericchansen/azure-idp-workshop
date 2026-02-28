@@ -290,13 +290,50 @@ test.describe("Module 2 — UI Interactions", () => {
   test("selecting Contract shows contract document", async ({ page, consoleErrors }) => {
     await page.goto("/module/2");
     await page.getByRole("button", { name: "Contract" }).click();
-    await expect(page.getByText("contract.txt")).toBeVisible();
+    await expect(page.getByText("contract.pdf")).toBeVisible();
   });
 
   test("analyze button is visible", async ({ page, consoleErrors }) => {
     await page.goto("/module/2");
     const runButton = page.getByRole("button", { name: /Compare|Analyze|Run/i });
     await expect(runButton).toBeVisible();
+  });
+
+  test("document preview iframe loads", async ({ page, consoleErrors }) => {
+    await page.goto("/module/2");
+    await expect(page.getByText("Source Document")).toBeVisible();
+    await expect(page.locator("iframe")).toBeVisible();
+  });
+
+  test("DI Formatted/Raw toggle switches result view", async ({ page, consoleErrors }) => {
+    await page.route("**/api/di/layout*", (route) =>
+      mockRoute(route, mockDILayoutResult)
+    );
+    await page.route("**/api/cu/custom*", (route) =>
+      mockRoute(route, mockCUCustomResult)
+    );
+
+    await page.goto("/module/2");
+    await page.getByRole("button", { name: "Contract" }).click();
+    await page.getByRole("button", { name: /Compare|Analyze|Run/i }).click();
+
+    await expect(page.getByText("DI — Raw Layout Extraction").first()).toBeVisible();
+
+    // Formatted view visible by default, raw hidden
+    const diRendered = page.locator("[x-ref='diRendered']");
+    const diRaw = page.locator("[x-ref='diRaw']");
+    await expect(diRendered).toBeVisible();
+    await expect(diRaw).not.toBeVisible();
+
+    // Click Raw button
+    await page.locator("button", { hasText: "{ } Raw" }).first().click();
+    await expect(diRaw).toBeVisible();
+    await expect(diRendered).not.toBeVisible();
+
+    // Click Formatted to switch back
+    await page.locator("button", { hasText: "Formatted" }).first().click();
+    await expect(diRendered).toBeVisible();
+    await expect(diRaw).not.toBeVisible();
   });
 });
 
@@ -318,7 +355,9 @@ test.describe("Module 3 — UI Interactions", () => {
 
   test("contract document preview loads", async ({ page, consoleErrors }) => {
     await page.goto("/module/3");
-    await expect(page.getByText("Source Document — contract.txt")).toBeVisible();
+    await expect(page.getByText("Source Document")).toBeVisible();
+    // PDF preview iframe should be present
+    await expect(page.locator("iframe")).toBeVisible();
   });
 });
 
