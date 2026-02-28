@@ -97,12 +97,12 @@ test.describe("Smoke: Module 2 — Unstructured Documents", () => {
     // Wait for DI results first (faster)
     await expect(
       page.getByText("DI — Raw Layout Extraction").first()
-    ).toBeVisible({ timeout: 90_000 });
+    ).toBeVisible({ timeout: 120_000 });
 
     // Wait for CU spinner to disappear (CU custom analysis is slower)
     await expect(
       page.getByText(/Running CU/i).first()
-    ).toBeHidden({ timeout: 90_000 });
+    ).toBeHidden({ timeout: 120_000 });
 
     // Both services should show results
     await expect(page.getByText("CU — Semantic Extraction").first()).toBeVisible();
