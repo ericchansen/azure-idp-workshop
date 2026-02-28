@@ -134,7 +134,7 @@ def _ensure_analyzer(client: Any, analyzer_id: str, fields: list[dict[str, str]]
                     for f in fields
                 }
             }
-        client.begin_create_analyzer(analyzer_id=analyzer_id, body=analyzer_def).result()
+        client.begin_create_analyzer(analyzer_id=analyzer_id, resource=analyzer_def).result()
         # Brief pause for analyzer to become available
         time.sleep(2)
 

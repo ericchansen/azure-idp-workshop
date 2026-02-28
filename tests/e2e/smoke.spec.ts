@@ -97,7 +97,7 @@ test.describe("Smoke: Module 2 — Unstructured Documents", () => {
     // Wait for both result sections (Module 2 uses "DI —" and "CU —" headings)
     await expect(
       page.getByText(/DI — Raw Layout|CU — Semantic/).first()
-    ).toBeVisible({ timeout: 45_000 });
+    ).toBeVisible({ timeout: 90_000 });
 
     // Both services should show results
     await expect(page.getByText("DI — Raw Layout Extraction").first()).toBeVisible();
