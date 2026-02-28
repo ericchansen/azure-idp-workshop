@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     # Azure Storage
     storage_account_url: str = ""
 
+    # CU model deployment names (must match Bicep deployment resource names)
+    cu_completion_deployment: str = "gpt-41"
+    cu_embedding_deployment: str = "text-embedding-3-large"
+
     # Runtime
     environment: str = "dev"
     log_level: str = "INFO"

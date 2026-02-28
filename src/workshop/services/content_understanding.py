@@ -12,6 +12,8 @@ from workshop.services.api_trace import ApiTrace, TraceTimer, sanitize_headers
 
 logger = logging.getLogger(__name__)
 
+_defaults_configured = False
+
 
 def _get_client():  # type: ignore[no-untyped-def]
     """Lazy-initialize the CU client."""
@@ -114,8 +116,27 @@ def _analyze_prebuilt(analyzer_id: str, file_bytes: bytes, filename: str) -> dic
     return {"result": result_dict, "trace": trace.to_dict()}
 
 
+def _ensure_defaults(client: Any) -> None:
+    """Set CU resource-level model deployment defaults (once per process)."""
+    global _defaults_configured  # noqa: PLW0603
+    if _defaults_configured:
+        return
+    try:
+        client.update_defaults(
+            model_deployments={
+                "gpt-4.1": settings.cu_completion_deployment,
+                "text-embedding-3-large": settings.cu_embedding_deployment,
+            }
+        )
+        _defaults_configured = True
+        logger.info("CU defaults configured: gpt-4.1→%s", settings.cu_completion_deployment)
+    except Exception as e:
+        logger.warning("Failed to set CU defaults: %s", e)
+
+
 def _ensure_analyzer(client: Any, analyzer_id: str, fields: list[dict[str, str]] | None) -> None:
     """Create or update a custom analyzer if it doesn't exist."""
+    _ensure_defaults(client)
     try:
         client.get_analyzer(analyzer_id)
     except Exception:

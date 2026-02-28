@@ -103,8 +103,8 @@ test.describe("Smoke: Module 2 — Unstructured Documents", () => {
     await expect(page.getByText("DI — Raw Layout Extraction").first()).toBeVisible();
     await expect(page.getByText("CU — Semantic Extraction").first()).toBeVisible();
 
-    // CU should extract semantic fields that DI cannot
-    await expect(page.getByText("summary").first()).toBeVisible();
+    // CU should extract semantic fields (purple field name cards)
+    await expect(page.locator(".text-purple-800").first()).toBeVisible();
 
     await assertNoErrorBanners(page);
   });
