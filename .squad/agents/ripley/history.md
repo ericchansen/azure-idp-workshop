@@ -11,6 +11,20 @@ Azure IDP Workshop — interactive demo comparing Azure Document Intelligence (D
 - **Key Teaching Principle**: Show DI and CU on same document in each module. Pedagogical flow: Structured (M1: DI wins) → Semantic (M2: CU wins) → Custom Intelligence (M3: CU's superpower).
 - Ripley and Hicks should be aware Module 1 and 2 restructuring may affect their template/test responsibilities.
 
+## Consolidation Analysis (2025-02-28)
+- **Directive:** Eric asked to consolidate Modules 2 & 3 (same doc, same APIs, same analyzer) and remove decision tree from Decision Guide
+- **Key Redundancy:** Both M2 and M3 use `contract.pdf`, `/api/di/layout` + `/api/cu/custom`, `workshopContract` analyzer. Only difference: M3 adds sentiment field + field definition UI
+- **Proposed Consolidation:** Single Module 2 "Semantic Extraction & Custom Fields" that shows baseline DI vs CU, then teaches custom field schema (like M3)
+- **Decision Guide Refactor:** Remove 4-step interactive tree (not pedagogical for hands-on workshop). Keep comparison matrix + scenario cards (practical decision support)
+- **Work Breakdown:**
+  - **Vasquez (Tester):** Update E2E tests (remove M3 refs, decision tree tests) — 14 M3 refs across 5 test files, test count ~84 → ~70
+  - **Lambert (Frontend Dev):** Merge M2+M3 templates, consolidate teaching sections, delete module3.html, edit guide.html/index.html/base.html
+  - **Hicks (Backend Dev):** Delete module_3() route, add 301 redirect from `/module/3` → `/module/2` (temporary, 90 days)
+  - **Ripley:** Approve consolidation gate; ensure new narrative is clear
+- **No API Changes:** `/api/di/layout` and `/api/cu/custom` work for both old M2 and M3 use cases; no backend work needed
+- **Risks:** Smoke test nav link count (expect 3 items, not 4), external links to `/module/3` (handled by 301 redirect)
+- **Plan Document:** `.squad/decisions/inbox/ripley-module-consolidation-plan.md` with full blast radius, test coverage, and phased work breakdown
+
 ## CI/CD & Deployment Pattern Analysis (2025-02-24)
 - **Recommendation:** Add GitHub Environments to `deploy-prod.yml` with `environment: production` for deployment history visibility and approval gates
 - **Why NOT copy teamskills model:** teamskills uses dedicated staging RG because it has Postgres + Entra ID auth; azure-idp-workshop's stateless multi-revision approach is simpler and cheaper

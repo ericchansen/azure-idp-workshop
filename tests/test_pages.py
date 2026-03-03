@@ -21,12 +21,6 @@ def test_module_2_page(client):  # type: ignore[no-untyped-def]
     assert "Unstructured" in resp.text
 
 
-def test_module_3_page(client):  # type: ignore[no-untyped-def]
-    resp = client.get("/module/3")
-    assert resp.status_code == 200
-    assert "Custom" in resp.text
-
-
 def test_guide_page(client):  # type: ignore[no-untyped-def]
     resp = client.get("/guide")
     assert resp.status_code == 200

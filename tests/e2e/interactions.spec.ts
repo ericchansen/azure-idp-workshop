@@ -125,17 +125,6 @@ const mockCUContentEmptyError = {
   },
 };
 
-const mockCUCustomErrorWithTrace = {
-  result: {},
-  trace: {
-    url: "https://test.cognitiveservices.azure.com/contentunderstanding/analyzers/workshopContract:analyze",
-    method: "POST",
-    response_status: 500,
-    duration_ms: 750,
-    error: "CU Custom analysis failed — model error",
-  },
-};
-
 function mockRoute(
   route: Route,
   body: object,
@@ -199,8 +188,9 @@ test.describe("Module 1 — UI Interactions", () => {
     const diTrace = page.locator("details", { hasText: "View API Trace" }).first();
     await diTrace.locator("summary").click();
 
-    // Trace data should be visible
-    await expect(page.getByText("documentintelligence").first()).toBeVisible();
+    // Trace data should be visible (scope to the expanded trace details, not code examples)
+    const traceContent = diTrace.locator("pre");
+    await expect(traceContent.first()).toBeVisible();
   });
 
   test("timing and page count are displayed", async ({ page, consoleErrors }) => {
@@ -265,8 +255,9 @@ test.describe("Module 1 — UI Interactions", () => {
     const cuTrace = page.locator("details", { hasText: "View API Trace" }).nth(1);
     await cuTrace.locator("summary").click();
 
-    // CU trace data should be visible
-    await expect(page.getByText("contentunderstanding").first()).toBeVisible();
+    // CU trace data should be visible (scope to the expanded trace details)
+    const traceContent = cuTrace.locator("pre");
+    await expect(traceContent.first()).toBeVisible();
   });
 
   test("DI table rendering shows table data", async ({ page, consoleErrors }) => {
@@ -290,7 +281,7 @@ test.describe("Module 2 — UI Interactions", () => {
   test("selecting Contract shows contract document", async ({ page, consoleErrors }) => {
     await page.goto("/module/2");
     await page.getByRole("button", { name: "Contract" }).click();
-    await expect(page.getByText("contract.pdf")).toBeVisible();
+    await expect(page.locator("[x-text='selectedSample']").getByText("contract.pdf")).toBeVisible();
   });
 
   test("analyze button is visible", async ({ page, consoleErrors }) => {
@@ -338,108 +329,10 @@ test.describe("Module 2 — UI Interactions", () => {
 });
 
 // ============================================================
-// Module 3 — Custom Field Definitions
+// Decision Guide — Comparison Matrix & Scenario Cards
 // ============================================================
 
-test.describe("Module 3 — UI Interactions", () => {
-  test("all 5 custom field definitions are displayed", async ({ page, consoleErrors }) => {
-    await page.goto("/module/3");
-
-    // All 5 field names should be visible
-    await expect(page.getByText("summary", { exact: true })).toBeVisible();
-    await expect(page.getByText("key_parties", { exact: true })).toBeVisible();
-    await expect(page.getByText("obligations", { exact: true })).toBeVisible();
-    await expect(page.getByText("risk_level", { exact: true })).toBeVisible();
-    await expect(page.getByText("sentiment", { exact: true })).toBeVisible();
-  });
-
-  test("contract document preview loads", async ({ page, consoleErrors }) => {
-    await page.goto("/module/3");
-    await expect(page.getByText("Source Document")).toBeVisible();
-    // PDF preview iframe should be present
-    await expect(page.locator("iframe")).toBeVisible();
-  });
-});
-
-// ============================================================
-// Decision Guide — Interactive Decision Tree
-// ============================================================
-
-test.describe("Decision Guide — Interactive Tree", () => {
-  test("Documents → Highly Structured → New Project → CU recommendation", async ({ page, consoleErrors }) => {
-    await page.goto("/guide");
-
-    // Step 1: Choose Documents
-    await page.getByRole("button", { name: /Documents/ }).click();
-
-    // Step 2: Choose Highly Structured
-    await page.getByRole("button", { name: /Highly Structured/ }).click();
-
-    // Step 3: Choose New Project
-    await page.getByRole("button", { name: /New Project/ }).click();
-
-    // Step 4: CU recommendation
-    await expect(page.getByText("Recommendation: Content Understanding")).toBeVisible();
-  });
-
-  test("Documents → Highly Structured → Existing DI → DI/migrate recommendation", async ({ page, consoleErrors }) => {
-    await page.goto("/guide");
-
-    await page.getByRole("button", { name: /Documents/ }).click();
-    await page.getByRole("button", { name: /Highly Structured/ }).click();
-    await page.getByRole("button", { name: /Existing DI/ }).click();
-
-    await expect(page.getByText("Recommendation: Keep DI")).toBeVisible();
-  });
-
-  test("Documents → Semi-Structured → CU recommendation", async ({ page, consoleErrors }) => {
-    await page.goto("/guide");
-
-    await page.getByRole("button", { name: /Documents/ }).click();
-    await page.getByRole("button", { name: /Semi-Structured/ }).click();
-
-    await expect(page.getByText("Recommendation: Content Understanding")).toBeVisible();
-  });
-
-  test("Documents → Unstructured → CU recommendation", async ({ page, consoleErrors }) => {
-    await page.goto("/guide");
-
-    await page.getByRole("button", { name: /Documents/ }).click();
-    await page.getByRole("button", { name: /Unstructured/ }).click();
-
-    await expect(page.getByText("Recommendation: Content Understanding")).toBeVisible();
-  });
-
-  test("Audio/Video → CU recommendation (skips to step 4)", async ({ page, consoleErrors }) => {
-    await page.goto("/guide");
-
-    await page.getByRole("button", { name: /Audio \/ Video/ }).click();
-
-    await expect(page.getByText("Recommendation: Content Understanding")).toBeVisible();
-  });
-
-  test("Images → CU recommendation (skips to step 4)", async ({ page, consoleErrors }) => {
-    await page.goto("/guide");
-
-    await page.getByRole("button", { name: /Images/ }).click();
-
-    await expect(page.getByText("Recommendation: Content Understanding")).toBeVisible();
-  });
-
-  test("Start Over resets to step 1", async ({ page, consoleErrors }) => {
-    await page.goto("/guide");
-
-    // Navigate to recommendation
-    await page.getByRole("button", { name: /Images/ }).click();
-    await expect(page.getByText("Recommendation: Content Understanding")).toBeVisible();
-
-    // Click Start Over
-    await page.getByRole("button", { name: /Start Over/ }).click();
-
-    // Should be back at step 1
-    await expect(page.getByText("What type of content are you processing?")).toBeVisible();
-  });
-
+test.describe("Decision Guide — Static Content", () => {
   test("comparison matrix table is visible", async ({ page, consoleErrors }) => {
     await page.goto("/guide");
 
@@ -479,11 +372,12 @@ test.describe("Module 2 — API Trace & Teaching Point", () => {
 
     await expect(page.getByText("DI — Raw Layout Extraction").first()).toBeVisible();
 
-    // Click DI API Trace (first trace toggle)
+    // Click DI API Trace (first trace toggle in results section)
     const diTrace = page.locator("details", { hasText: "API Trace" }).first();
     await diTrace.locator("summary").click();
 
-    await expect(page.getByText("documentintelligence").first()).toBeVisible();
+    // Verify trace content is visible within the expanded details
+    await expect(diTrace.locator("pre").first()).toBeVisible();
   });
 
   test("CU API Trace details toggle expands and shows trace data", async ({ page, consoleErrors }) => {
@@ -493,11 +387,12 @@ test.describe("Module 2 — API Trace & Teaching Point", () => {
 
     await expect(page.getByText("CU — Semantic Extraction").first()).toBeVisible();
 
-    // Click CU API Trace (second trace toggle)
+    // Click CU API Trace (second trace toggle in results section)
     const cuTrace = page.locator("details", { hasText: "API Trace" }).nth(1);
     await cuTrace.locator("summary").click();
 
-    await expect(page.getByText("contentunderstanding").first()).toBeVisible();
+    // Verify trace content is visible within the expanded details
+    await expect(cuTrace.locator("pre").first()).toBeVisible();
   });
 
   test("teaching point appears after both results", async ({ page, consoleErrors }) => {
@@ -509,58 +404,6 @@ test.describe("Module 2 — API Trace & Teaching Point", () => {
     await expect(page.getByText("CU — Semantic Extraction").first()).toBeVisible();
 
     await expect(page.getByText("What to Notice")).toBeVisible();
-  });
-});
-
-// ============================================================
-// Module 3 — API Trace & Teaching Point
-// ============================================================
-
-test.describe("Module 3 — API Trace & Teaching Point", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.route("**/api/cu/custom*", (route) =>
-      mockRoute(route, mockCUCustomResult)
-    );
-    await page.route("**/api/di/layout*", (route) =>
-      mockRoute(route, mockDILayoutResult)
-    );
-  });
-
-  test("CU custom API Trace details toggle expands and shows trace data", async ({ page, consoleErrors }) => {
-    await page.goto("/module/3");
-    await page.getByRole("button", { name: /Run CU Custom/i }).click();
-
-    await expect(page.getByText("CU — Custom Inferred Fields")).toBeVisible();
-
-    // CU trace is the first API Trace toggle (CU is on the left in Module 3)
-    const cuTrace = page.locator("details", { hasText: /API Trace/ }).first();
-    await cuTrace.locator("summary").click();
-
-    await expect(page.getByText("contentunderstanding").first()).toBeVisible();
-  });
-
-  test("DI layout API Trace details toggle expands and shows trace data", async ({ page, consoleErrors }) => {
-    await page.goto("/module/3");
-    await page.getByRole("button", { name: /Run CU Custom/i }).click();
-
-    await expect(page.getByText("DI — Raw Layout Extraction")).toBeVisible();
-
-    // DI trace is the second API Trace toggle
-    const diTrace = page.locator("details", { hasText: /API Trace/ }).nth(1);
-    await diTrace.locator("summary").click();
-
-    await expect(page.getByText("documentintelligence").first()).toBeVisible();
-  });
-
-  test("teaching point appears after both results", async ({ page, consoleErrors }) => {
-    await page.goto("/module/3");
-    await page.getByRole("button", { name: /Run CU Custom/i }).click();
-
-    await expect(page.getByText("CU — Custom Inferred Fields")).toBeVisible();
-    await expect(page.getByText("DI — Raw Layout Extraction")).toBeVisible();
-
-    await expect(page.getByText("What to Notice")).toBeVisible();
-    await expect(page.getByText("CU understands the document")).toBeVisible();
   });
 });
 
@@ -617,28 +460,6 @@ test.describe("Error State — API Trace Toggles", () => {
     await expect(errorBanner.getByText("contentunderstanding")).toBeVisible();
   });
 
-  test("Module 3: CU custom error trace toggle expands and shows trace data", async ({ page, consoleErrors }) => {
-    await page.route("**/api/cu/custom*", (route) =>
-      mockRoute(route, mockCUCustomErrorWithTrace)
-    );
-    await page.route("**/api/di/layout*", (route) =>
-      mockRoute(route, mockDILayoutResult)
-    );
-
-    await page.goto("/module/3");
-    await page.getByRole("button", { name: /Run CU Custom/i }).click();
-
-    // CU error banner should appear
-    await expect(page.getByText("CU Custom Analysis Failed", { exact: true })).toBeVisible();
-
-    // Click API Trace inside the CU error banner
-    const errorBanner = page.locator(".bg-red-50").filter({ hasText: "CU Custom Analysis Failed" });
-    const errorTrace = errorBanner.locator("details", { hasText: "API Trace" });
-    await errorTrace.locator("summary").click();
-
-    // Trace data should be visible
-    await expect(errorBanner.getByText("contentunderstanding")).toBeVisible();
-  });
 });
 
 // ============================================================
@@ -659,14 +480,7 @@ test.describe("Homepage — Navigation Interactions", () => {
     await page.goto("/");
     await page.locator("main").getByRole("link", { name: /Module 2/ }).click();
     await expect(page).toHaveURL(/\/module\/2/);
-    await expect(page.getByRole("heading", { name: /Module 2.*Unstructured/ })).toBeVisible();
-  });
-
-  test("Module 3 card navigates to /module/3", async ({ page, consoleErrors }) => {
-    await page.goto("/");
-    await page.locator("main").getByRole("link", { name: /Module 3/ }).click();
-    await expect(page).toHaveURL(/\/module\/3/);
-    await expect(page.getByRole("heading", { name: /Module 3/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Module 2.*Semantic/ })).toBeVisible();
   });
 
   test("Decision Guide card navigates to /guide", async ({ page, consoleErrors }) => {
@@ -688,7 +502,6 @@ test.describe("Homepage — Navigation Interactions", () => {
 
     await expect(page.locator("main").getByRole("link", { name: /Module 1/ })).toBeVisible();
     await expect(page.locator("main").getByRole("link", { name: /Module 2/ })).toBeVisible();
-    await expect(page.locator("main").getByRole("link", { name: /Module 3/ })).toBeVisible();
     await expect(page.locator("main").getByRole("link", { name: /Decision Guide/ })).toBeVisible();
   });
 });

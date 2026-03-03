@@ -59,11 +59,6 @@ async def module_2(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "module2.html")
 
 
-@app.get("/module/3", response_class=HTMLResponse)
-async def module_3(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(request, "module3.html")
-
-
 @app.get("/guide", response_class=HTMLResponse)
 async def decision_guide(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "guide.html")

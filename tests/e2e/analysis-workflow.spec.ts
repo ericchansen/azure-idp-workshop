@@ -193,30 +193,9 @@ test.describe("Module 2 — Analysis Workflow", () => {
     ).toBeVisible();
 
     // CU should show semantic fields that DI cannot extract
-    await expect(page.getByText("summary").first()).toBeVisible();
-    await expect(page.getByText("Analysis Failed")).not.toBeVisible();
-  });
-});
-
-// ============================================================
-// Module 3 — Custom Fields
-// ============================================================
-
-test.describe("Module 3 — Analysis Workflow", () => {
-  test("analyze contract shows custom field extraction", async ({ page, consoleErrors }) => {
-    await page.route("**/api/cu/custom*", (route) =>
-      mockRoute(route, mockCUCustomResult)
-    );
-    await page.route("**/api/di/layout*", (route) =>
-      mockRoute(route, mockDILayoutResult)
-    );
-
-    await page.goto("/module/3");
-    await page.getByRole("button", { name: /Run CU Custom/i }).click();
-
-    // Custom fields should appear
-    await expect(page.getByText("summary").first()).toBeVisible();
-    await expect(page.getByText("risk_level").first()).toBeVisible();
+    const cuHeading = page.getByText("CU — Semantic Extraction").first();
+    const cuResultPanel = cuHeading.locator("..").locator("..");
+    await expect(cuResultPanel.getByText("summary").first()).toBeVisible();
     await expect(page.getByText("Analysis Failed")).not.toBeVisible();
   });
 });
@@ -280,22 +259,6 @@ test.describe("Error Resilience — Server Errors", () => {
     await expect(page.getByText("Unexpected token")).not.toBeVisible();
   });
 
-  test("Module 3: 500 on CU custom endpoint handled", async ({ page, consoleErrors }) => {
-    await page.route("**/api/cu/custom*", (route) =>
-      mockErrorRoute(route, "Gateway Timeout", 504)
-    );
-    await page.route("**/api/di/layout*", (route) =>
-      mockRoute(route, mockDILayoutResult)
-    );
-
-    await page.goto("/module/3");
-    await page.getByRole("button", { name: /Run CU Custom/i }).click();
-
-    // CU should show error, DI should show success
-    await expect(page.getByText("Gateway Timeout")).toBeVisible();
-    // DI result should still render
-    await expect(page.getByText("Contoso").first()).toBeVisible();
-  });
 });
 
 test.describe("Error Resilience — Mixed Results", () => {

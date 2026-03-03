@@ -6,105 +6,29 @@
     <h1 class="text-3xl font-bold mb-2">🧭 Decision Guide: DI vs CU</h1>
     <p class="text-gray-600 text-lg">
         When should you use Document Intelligence vs Content Understanding?
-        Use this interactive guide to find the right service for your scenario.
+        Use this reference guide to find the right service for your scenario.
     </p>
 </div>
 
-<!-- Interactive Decision Tree -->
-<div x-data="{ step: 1, answers: {} }" class="mb-8" x-cloak>
-    <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold mb-4">🌳 Interactive Decision Tree</h2>
-
-        <!-- Step 1 -->
-        <div x-show="step === 1">
-            <p class="text-gray-700 mb-4 font-medium">What type of content are you processing?</p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <button @click="answers.content = 'documents'; step = 2"
-                    class="p-4 border-2 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-left transition-all">
-                    <div class="text-2xl mb-2">📄</div>
-                    <div class="font-medium">Documents</div>
-                    <div class="text-sm text-gray-500">PDFs, images of forms, scanned docs</div>
-                </button>
-                <button @click="answers.content = 'multimodal'; answers.recommendation = 'cu'; step = 4"
-                    class="p-4 border-2 rounded-lg hover:border-purple-500 hover:bg-purple-50 text-left transition-all">
-                    <div class="text-2xl mb-2">🎥</div>
-                    <div class="font-medium">Audio / Video</div>
-                    <div class="text-sm text-gray-500">Recordings, meetings, calls</div>
-                </button>
-                <button @click="answers.content = 'images'; answers.recommendation = 'cu'; step = 4"
-                    class="p-4 border-2 rounded-lg hover:border-purple-500 hover:bg-purple-50 text-left transition-all">
-                    <div class="text-2xl mb-2">🖼️</div>
-                    <div class="font-medium">Images</div>
-                    <div class="text-sm text-gray-500">Photos, product images, diagrams</div>
-                </button>
-            </div>
-        </div>
-
-        <!-- Step 2: Structure level -->
-        <div x-show="step === 2">
-            <p class="text-gray-700 mb-4 font-medium">How structured are your documents?</p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <button @click="answers.structure = 'highly'; step = 3"
-                    class="p-4 border-2 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-left transition-all">
-                    <div class="text-2xl mb-2">📋</div>
-                    <div class="font-medium">Highly Structured</div>
-                    <div class="text-sm text-gray-500">Standard forms: invoices, receipts, tax forms, IDs</div>
-                </button>
-                <button @click="answers.structure = 'semi'; answers.recommendation = 'cu'; step = 4"
-                    class="p-4 border-2 rounded-lg hover:border-purple-500 hover:bg-purple-50 text-left transition-all">
-                    <div class="text-2xl mb-2">📑</div>
-                    <div class="font-medium">Semi-Structured</div>
-                    <div class="text-sm text-gray-500">Varied layouts: different vendor invoices, reports</div>
-                </button>
-                <button @click="answers.structure = 'unstructured'; answers.recommendation = 'cu'; step = 4"
-                    class="p-4 border-2 rounded-lg hover:border-purple-500 hover:bg-purple-50 text-left transition-all">
-                    <div class="text-2xl mb-2">📝</div>
-                    <div class="font-medium">Unstructured</div>
-                    <div class="text-sm text-gray-500">Contracts, research papers, emails, memos</div>
-                </button>
-            </div>
-        </div>
-
-        <!-- Step 3: Existing or new? -->
-        <div x-show="step === 3">
-            <p class="text-gray-700 mb-4 font-medium">Is this a new project or an existing DI deployment?</p>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <button @click="answers.project = 'new'; answers.recommendation = 'cu'; step = 4"
-                    class="p-4 border-2 rounded-lg hover:border-purple-500 hover:bg-purple-50 text-left transition-all">
-                    <div class="text-2xl mb-2">🆕</div>
-                    <div class="font-medium">New Project</div>
-                    <div class="text-sm text-gray-500">Starting from scratch</div>
-                </button>
-                <button @click="answers.project = 'existing'; answers.recommendation = 'di-or-migrate'; step = 4"
-                    class="p-4 border-2 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-left transition-all">
-                    <div class="text-2xl mb-2">🔄</div>
-                    <div class="font-medium">Existing DI Deployment</div>
-                    <div class="text-sm text-gray-500">Already using Document Intelligence</div>
-                </button>
-            </div>
-        </div>
-
-        <!-- Step 4: Recommendation -->
-        <div x-show="step === 4">
-            <div x-show="answers.recommendation === 'cu'" class="bg-purple-50 border-2 border-purple-200 rounded-lg p-6">
-                <h3 class="text-xl font-bold text-purple-800 mb-2">🟣 Recommendation: Content Understanding</h3>
-                <p class="text-purple-700">
-                    For your scenario, <strong>Azure Content Understanding</strong> is the recommended choice.
-                    It offers GenAI-powered extraction, multimodal support, and improved accuracy over DI.
-                </p>
-            </div>
-            <div x-show="answers.recommendation === 'di-or-migrate'" class="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
-                <h3 class="text-xl font-bold text-blue-800 mb-2">🔵 Recommendation: Keep DI / Plan Migration</h3>
-                <p class="text-blue-700">
-                    Your existing DI deployment works well for structured forms. Consider a gradual migration to CU
-                    to benefit from improved accuracy and GenAI capabilities. CU's prebuilt models are API-compatible.
-                </p>
-            </div>
-
-            <button @click="step = 1; answers = {}" class="mt-4 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm font-medium">
-                ↩ Start Over
-            </button>
-        </div>
+<!-- Quick Decision Summary -->
+<div class="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
+        <h2 class="text-lg font-semibold text-blue-800 mb-3">🔵 Choose Document Intelligence if:</h2>
+        <ul class="text-sm text-blue-900 space-y-2 list-disc list-inside">
+            <li>High-volume structured forms (invoices, receipts, IDs)</li>
+            <li>Need deterministic, cost-optimized processing</li>
+            <li>Already deployed DI in production</li>
+            <li>Simple text/layout extraction is sufficient</li>
+        </ul>
+    </div>
+    <div class="bg-purple-50 border-2 border-purple-200 rounded-lg p-6">
+        <h2 class="text-lg font-semibold text-purple-800 mb-3">🟣 Choose Content Understanding if:</h2>
+        <ul class="text-sm text-purple-900 space-y-2 list-disc list-inside">
+            <li>Extracting meaning from varied/unstructured documents</li>
+            <li>Need GenAI field inference without training</li>
+            <li>Working with audio, video, or images</li>
+            <li>Starting a new project (Microsoft's recommendation)</li>
+        </ul>
     </div>
 </div>
 

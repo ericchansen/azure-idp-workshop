@@ -10,6 +10,207 @@
     </p>
 </div>
 
+<!-- Architecture & Setup -->
+<details class="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg">
+    <summary class="cursor-pointer p-5 font-semibold text-emerald-900 hover:text-emerald-700">
+        🏗️ Architecture & Setup — What's Happening Under the Hood
+    </summary>
+    <div class="px-5 pb-5 space-y-6">
+        <!-- Data Flow Diagram -->
+        <div>
+            <h4 class="font-semibold text-emerald-800 mb-3">📐 Data Flow</h4>
+            <div class="bg-white rounded-lg border p-4 overflow-x-auto">
+                <div class="flex items-center justify-center gap-2 text-xs font-mono min-w-[600px]">
+                    <div class="bg-blue-100 border-2 border-blue-400 rounded-lg px-3 py-2 text-center">
+                        <div class="font-bold text-blue-800">Browser</div>
+                        <div class="text-blue-600">Alpine.js UI</div>
+                    </div>
+                    <div class="text-gray-400 font-bold">→</div>
+                    <div class="bg-green-100 border-2 border-green-400 rounded-lg px-3 py-2 text-center">
+                        <div class="font-bold text-green-800">FastAPI</div>
+                        <div class="text-green-600">/api/di/layout</div>
+                        <div class="text-green-600">/api/cu/layout</div>
+                    </div>
+                    <div class="text-gray-400 font-bold">→</div>
+                    <div class="bg-purple-100 border-2 border-purple-400 rounded-lg px-3 py-2 text-center">
+                        <div class="font-bold text-purple-800">Azure AI Services</div>
+                        <div class="text-purple-600">Managed Identity auth</div>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <div class="text-gray-400 font-bold">→</div>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <div class="bg-blue-50 border border-blue-300 rounded px-3 py-1.5 text-center">
+                            <div class="font-bold text-blue-700">DI</div>
+                            <div class="text-blue-600">prebuilt-layout</div>
+                        </div>
+                        <div class="bg-purple-50 border border-purple-300 rounded px-3 py-1.5 text-center">
+                            <div class="font-bold text-purple-700">CU</div>
+                            <div class="text-purple-600">prebuilt-layout</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">Both services use the same Azure AI Services resource. The browser sends parallel requests so you can compare results side by side.</p>
+        </div>
+
+        <!-- What are we comparing -->
+        <div>
+            <h4 class="font-semibold text-emerald-800 mb-2">🔬 What Are We Comparing?</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="font-semibold text-blue-800 mb-1">🔵 Document Intelligence (DI)</div>
+                    <p class="text-sm text-gray-700">Microsoft's battle-tested OCR + layout engine. Deterministic results, fast, cheap ($0.01/page). Built for high-volume, structured document processing — invoices, receipts, W-2s.</p>
+                </div>
+                <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <div class="font-semibold text-purple-800 mb-1">🟣 Content Understanding (CU)</div>
+                    <p class="text-sm text-gray-700">Azure's newer multimodal service. Also does layout extraction, but CU is built for <em>understanding</em> — GenAI-powered analysis. Layout mode here is CU's simplest capability.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- When to use in production -->
+        <div>
+            <h4 class="font-semibold text-emerald-800 mb-2">🏭 When to Use This in Production</h4>
+            <ul class="text-sm space-y-1 list-disc list-inside text-gray-700">
+                <li><strong>Invoice processing pipelines</strong> — DI's prebuilt-invoice extracts fields + line items automatically</li>
+                <li><strong>Receipt scanning</strong> — DI's prebuilt-receipt handles photos of receipts with high accuracy</li>
+                <li><strong>Form digitization</strong> — DI excels at forms with fixed fields (tax forms, applications, surveys)</li>
+                <li><strong>High-volume OCR</strong> — DI processes thousands of pages/minute at $0.01/page with deterministic results</li>
+            </ul>
+        </div>
+
+        <!-- Try It Yourself -->
+        <div x-data="{ tryTab: 'python' }">
+            <h4 class="font-semibold text-emerald-800 mb-3">🔬 Try It Yourself</h4>
+            <div class="flex gap-2 mb-3">
+                <button @click="tryTab = 'python'" :class="tryTab === 'python' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'" class="text-xs px-3 py-1.5 rounded font-medium transition-all">🐍 Python SDK</button>
+                <button @click="tryTab = 'curl'" :class="tryTab === 'curl' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'" class="text-xs px-3 py-1.5 rounded font-medium transition-all">🌐 cURL</button>
+            </div>
+            <div x-show="tryTab === 'python'">
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-python"># pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-identity
+from azure.ai.documentintelligence import DocumentIntelligenceClient
+from azure.ai.documentintelligence.models import AnalyzeDocumentRequest
+from azure.ai.contentunderstanding import ContentUnderstandingClient
+from azure.identity import DefaultAzureCredential
+
+endpoint = "https://&lt;your-resource&gt;.cognitiveservices.azure.com"
+credential = DefaultAzureCredential()
+
+# --- Document Intelligence (Layout) ---
+di_client = DocumentIntelligenceClient(endpoint, credential)
+with open("invoice.pdf", "rb") as f:
+    poller = di_client.begin_analyze_document("prebuilt-layout", AnalyzeDocumentRequest(bytes_source=f.read()))
+di_result = poller.result()
+print(f"DI found {len(di_result.pages)} pages, {len(di_result.tables or [])} tables")
+
+# --- Content Understanding (Layout) ---
+cu_client = ContentUnderstandingClient(endpoint, credential)
+with open("invoice.pdf", "rb") as f:
+    poller = cu_client.begin_analyze("prebuilt-layout", body=f.read(), content_type="application/octet-stream")
+cu_result = poller.result()
+print(f"CU returned {len(cu_result.get('contents', []))} content segments")</code></pre>
+            </div>
+            <div x-show="tryTab === 'curl'">
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-bash"># Get an access token (requires az login)
+TOKEN=$(az account get-access-token --resource https://cognitiveservices.azure.com --query accessToken -o tsv)
+ENDPOINT="https://&lt;your-resource&gt;.cognitiveservices.azure.com"
+
+# --- Document Intelligence (Layout) ---
+# Start analysis
+DI_URL=$(curl -s -D - -X POST "$ENDPOINT/formrecognizer/documentModels/prebuilt-layout:analyze?api-version=2024-11-30" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/pdf" \
+  --data-binary @invoice.pdf | grep -i operation-location | tr -d '\r' | cut -d' ' -f2)
+# Poll for result
+curl -s -H "Authorization: Bearer $TOKEN" "$DI_URL" | python -m json.tool
+
+# --- Content Understanding (Layout) ---
+CU_URL=$(curl -s -D - -X POST "$ENDPOINT/contentunderstanding/analyzers/prebuilt-layout:analyze?api-version=2025-05-01-preview" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/pdf" \
+  --data-binary @invoice.pdf | grep -i operation-location | tr -d '\r' | cut -d' ' -f2)
+curl -s -H "Authorization: Bearer $TOKEN" "$CU_URL" | python -m json.tool</code></pre>
+            </div>
+        </div>
+
+        <!-- IaC -->
+        <div x-data="{ iacTab: 'bicep' }">
+            <h4 class="font-semibold text-emerald-800 mb-3">🧱 Infrastructure as Code</h4>
+            <div class="flex gap-2 mb-3">
+                <button @click="iacTab = 'bicep'" :class="iacTab === 'bicep' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'" class="text-xs px-3 py-1.5 rounded font-medium transition-all">Bicep</button>
+                <button @click="iacTab = 'terraform'" :class="iacTab === 'terraform' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'" class="text-xs px-3 py-1.5 rounded font-medium transition-all">Terraform</button>
+                <button @click="iacTab = 'cli'" :class="iacTab === 'cli' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'" class="text-xs px-3 py-1.5 rounded font-medium transition-all">Azure CLI</button>
+            </div>
+            <div x-show="iacTab === 'bicep'">
+                <p class="text-xs text-gray-500 mb-2">From this workshop's <code>infra/modules/ai-services.bicep</code>:</p>
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-bash">// Azure AI Services — serves both DI and CU from one resource
+resource aiServices 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
+  name: 'my-ai-services'
+  location: 'eastus'
+  kind: 'AIServices'    // ← Key: AIServices kind, NOT CognitiveServices
+  sku: { name: 'S0' }
+  properties: {
+    customSubDomainName: 'my-ai-services'
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+// Role assignment — Managed Identity auth (no API keys!)
+resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, 'cognitive-services-user')
+  properties: {
+    principalId: managedIdentity.properties.principalId
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      'a97b65f3-24c7-4388-baec-2e87135dc908'  // Cognitive Services User
+    )
+  }
+}</code></pre>
+            </div>
+            <div x-show="iacTab === 'terraform'">
+                <p class="text-xs text-gray-500 mb-2">Equivalent Terraform (HCL):</p>
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-bash">resource "azurerm_cognitive_account" "ai_services" {
+  name                  = "my-ai-services"
+  location              = azurerm_resource_group.rg.location
+  resource_group_name   = azurerm_resource_group.rg.name
+  kind                  = "AIServices"    # Key: AIServices kind
+  sku_name              = "S0"
+  custom_subdomain_name = "my-ai-services"
+}
+
+resource "azurerm_role_assignment" "cognitive_user" {
+  scope                = azurerm_resource_group.rg.id
+  role_definition_name = "Cognitive Services User"
+  principal_id         = azurerm_user_assigned_identity.identity.principal_id
+}</code></pre>
+            </div>
+            <div x-show="iacTab === 'cli'">
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-bash"># Create resource group
+az group create --name my-rg --location eastus
+
+# Create AI Services resource (serves both DI and CU)
+az cognitiveservices account create \
+    --name my-ai-services \
+    --resource-group my-rg \
+    --kind AIServices \
+    --sku S0 \
+    --location eastus \
+    --custom-domain my-ai-services
+
+# Assign Cognitive Services User role to your identity
+az role assignment create \
+    --assignee &lt;your-principal-id&gt; \
+    --role "Cognitive Services User" \
+    --scope /subscriptions/&lt;sub-id&gt;/resourceGroups/my-rg
+
+# Install Python SDKs
+pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-identity</code></pre>
+            </div>
+        </div>
+    </div>
+</details>
+
 <div x-data="{
     diResult: null, cuResult: null, loading: false, selectedSample: '',
     diDone: false, cuDone: false, startTime: null, elapsed: '0.0', timer: null,
@@ -47,6 +248,16 @@
                 class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 🧾 Receipt (PNG)
             </button>
+        </div>
+        <!-- What to look for -->
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
+            <h3 class="font-semibold text-amber-900 text-sm mb-2">🎯 What to Look For</h3>
+            <ul class="text-xs text-amber-800 space-y-1 list-disc list-inside">
+                <li><strong>Speed</strong> — Watch the progress indicators. DI is typically faster on structured documents.</li>
+                <li><strong>Tables</strong> — DI excels at detecting and structuring table data with row/column awareness.</li>
+                <li><strong>Content format</strong> — DI returns raw text + structure. CU returns markdown-formatted content.</li>
+                <li><strong>API trace</strong> — Expand the trace to see exact request/response details and timing.</li>
+            </ul>
         </div>
         <button @click="startAnalysis()" :disabled="!selectedSample || loading"
             class="mt-4 px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
@@ -214,6 +425,25 @@
             <template x-if="!cuResult">
                 <div class="text-gray-400 text-sm">Waiting for results...</div>
             </template>
+        </div>
+    </div>
+
+    <!-- Comparison guide -->
+    <div x-show="diResult && cuResult && !hasError(diResult) && !hasError(cuResult)" x-transition class="mt-6 bg-sky-50 border border-sky-200 rounded-lg p-5">
+        <h3 class="font-semibold text-sky-900 mb-2">🔍 Side-by-Side Comparison Guide</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+                <div class="font-medium text-sky-800 mb-1">⏱️ Response Time</div>
+                <p class="text-xs text-gray-600">Check the millisecond timings. DI is typically 2-5× faster on structured docs because it uses deterministic extraction — no GenAI inference overhead.</p>
+            </div>
+            <div>
+                <div class="font-medium text-sky-800 mb-1">📊 Table Detection</div>
+                <p class="text-xs text-gray-600">DI detects tables with explicit row/column structure. CU returns markdown tables. Toggle "Raw JSON" to see the structural difference.</p>
+            </div>
+            <div>
+                <div class="font-medium text-sky-800 mb-1">📄 Content Format</div>
+                <p class="text-xs text-gray-600">DI returns plain text with bounding boxes. CU returns markdown with headers and formatting. Both are valid — different trade-offs.</p>
+            </div>
         </div>
     </div>
 
