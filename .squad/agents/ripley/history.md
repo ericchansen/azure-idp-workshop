@@ -21,3 +21,14 @@ Azure IDP Workshop — interactive demo comparing Azure Document Intelligence (D
   - `infra/main.bicep` — Single IaC template; no separate stage params (unlike teamskills)
 - **GitHub Environments comparison:** teamskills uses `production` + `staging` environments; azure-idp-workshop currently has none
 - **Implementation:** 1-line change to `deploy-prod.yml` (add `environment: production`); optional approval rules in repo settings
+
+## Documentation Alignment After PR #5 (2025-02-24)
+- **Task:** Update README.md to reflect post-PR#5 module restructure
+- **Changes made:**
+  - Module 1: "OCR & Layout" → "Structured Extraction — When DI Wins" (focus: forms, confidence scoring, cost)
+  - Module 2: "Prebuilt Models" → "Unstructured Documents — When DI Falls Short" (focus: semantic meaning on contracts)
+  - Module 3: "Custom Fields" → "Custom & Inferred Fields — CU's Unique Power" (focus: GenAI extraction without training)
+  - Removed HTMX from Tech Stack table (app uses Alpine.js only)
+  - Updated architecture diagram to reflect Alpine.js
+- **Why important:** README is the first touchpoint for learners and contributors. Stale docs cause confusion and onboarding friction.
+- **Commit:** `docs/update-readme` branch, conventional commit with Copilot co-author trailer
