@@ -5,10 +5,10 @@ Interactive zero-to-hero workshop comparing **Azure Document Intelligence (DI)**
 ## What This Is
 
 A web-based training tool with progressive modules that teach you:
-1. **Module 1 — OCR & Layout**: How both services digitize documents
-2. **Module 2 — Prebuilt Models**: Head-to-head comparison on invoices and receipts
-3. **Module 3 — Custom Fields**: CU's GenAI-powered field inference (summaries, entities, sentiment)
-4. **Decision Guide**: When to use DI vs CU, with interactive decision tree
+1. **Module 1 — Structured Extraction**: When DI wins. Forms with predefined fields — DI excels at confidence scoring, cost, and determinism.
+2. **Module 2 — Unstructured Documents**: When DI falls short. CU infers semantic meaning from contracts and complex documents.
+3. **Module 3 — Custom & Inferred Fields**: CU's unique power. GenAI-driven extraction without predefined fields or training.
+4. **Decision Guide**: Interactive decision tree and comparison matrix to pick the right service.
 
 Every operation shows the **actual API request and response** — no black boxes.
 
@@ -38,7 +38,7 @@ uv run uvicorn workshop.server:app --reload --port 8080
 | Component | Technology |
 |-----------|------------|
 | Backend | Python 3.12 + FastAPI |
-| Frontend | Jinja2 + HTMX + Alpine.js + Tailwind CSS (CDN) |
+| Frontend | Jinja2 + Alpine.js + Tailwind CSS (CDN) |
 | Azure SDKs | `azure-ai-documentintelligence`, `azure-ai-contentunderstanding` |
 | Infra | Bicep → Azure Container Apps |
 | CI/CD | GitHub Actions (OIDC) |
@@ -60,7 +60,7 @@ docker build -t idp-workshop .   # Build container
 User Browser
     │
     ▼
-FastAPI (Jinja2 + HTMX)
+FastAPI (Jinja2 + Alpine.js)
     │
     ├─► Azure Document Intelligence (DI)
     ├─► Azure Content Understanding (CU)
