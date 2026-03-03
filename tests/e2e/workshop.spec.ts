@@ -12,9 +12,6 @@ test.describe("Homepage", () => {
       page.locator("nav").locator('a[href="/module/2"]')
     ).toBeVisible();
     await expect(
-      page.locator("nav").locator('a[href="/module/3"]')
-    ).toBeVisible();
-    await expect(
       page.locator("nav").locator('a[href="/guide"]')
     ).toBeVisible();
   });
@@ -56,11 +53,11 @@ test.describe("Module 1 — Structured Extraction", () => {
   });
 });
 
-test.describe("Module 2 — Unstructured Documents", () => {
+test.describe("Module 2 — Semantic Extraction & Custom Fields", () => {
   test("page loads with document picker", async ({ page, consoleErrors }) => {
     await page.goto("/module/2");
     await expect(
-      page.getByRole("heading", { name: /Module 2.*Unstructured/ })
+      page.getByRole("heading", { name: /Module 2.*Semantic/ })
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Contract" })).toBeVisible();
   });
@@ -71,38 +68,7 @@ test.describe("Module 2 — Unstructured Documents", () => {
       hasText: "Behind the Scenes",
     });
     await details.locator("summary").click();
-    await expect(page.getByText("REST API Endpoints")).toBeVisible();
-  });
-});
-
-test.describe("Module 3 — Custom & Inferred Fields", () => {
-  test("page loads with field definitions", async ({ page, consoleErrors }) => {
-    await page.goto("/module/3");
-    await expect(
-      page.getByRole("heading", { name: /Module 3.*Custom/ })
-    ).toBeVisible();
-    await expect(
-      page.getByText("summary", { exact: true })
-    ).toBeVisible();
-    await expect(
-      page.getByText("risk_level", { exact: true })
-    ).toBeVisible();
-  });
-
-  test("contract document preview loads", async ({ page, consoleErrors }) => {
-    await page.goto("/module/3");
-    await expect(
-      page.getByText("Source Document", { exact: false })
-    ).toBeVisible();
-  });
-
-  test("Behind the Scenes shows CU custom info", async ({ page, consoleErrors }) => {
-    await page.goto("/module/3");
-    const details = page.locator("details", {
-      hasText: "Behind the Scenes",
-    });
-    await details.locator("summary").click();
-    await expect(page.getByText("GPT-4.1 model deployment")).toBeVisible();
+    await expect(page.getByText("REST API Flow")).toBeVisible();
   });
 });
 

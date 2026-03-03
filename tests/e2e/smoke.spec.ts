@@ -21,7 +21,6 @@ test.describe("Smoke: Homepage", () => {
     // All module links present
     await expect(page.locator("nav").locator('a[href="/module/1"]')).toBeVisible();
     await expect(page.locator("nav").locator('a[href="/module/2"]')).toBeVisible();
-    await expect(page.locator("nav").locator('a[href="/module/3"]')).toBeVisible();
     await expect(page.locator("nav").locator('a[href="/guide"]')).toBeVisible();
   });
 
@@ -115,31 +114,6 @@ test.describe("Smoke: Module 2 — Unstructured Documents", () => {
 });
 
 // ============================================================
-// Module 3 — Custom Fields (Live)
-// ============================================================
-
-test.describe("Smoke: Module 3 — Custom & Inferred Fields", () => {
-  test("contract: custom field extraction works", async ({ page, consoleErrors }) => {
-    await page.goto("/module/3");
-
-    // Field definitions should be visible before running
-    await expect(page.getByText("summary", { exact: true })).toBeVisible();
-    await expect(page.getByText("risk_level", { exact: true })).toBeVisible();
-
-    // Run analysis
-    await page.getByRole("button", { name: /Run/i }).click();
-
-    await waitForAnalysisComplete(page);
-
-    // Custom fields should show extracted values
-    await expect(page.getByText("summary").first()).toBeVisible();
-    await expect(page.getByText("risk_level").first()).toBeVisible();
-
-    await assertNoErrorBanners(page);
-  });
-});
-
-// ============================================================
 // Guide Page
 // ============================================================
 
@@ -183,7 +157,7 @@ test.describe("Smoke: Document API", () => {
 // ============================================================
 
 test.describe("Smoke: Behind the Scenes", () => {
-  for (const mod of [1, 2, 3]) {
+  for (const mod of [1, 2]) {
     test(`Module ${mod}: Behind the Scenes expands without errors`, async ({ page, consoleErrors }) => {
       await page.goto(`/module/${mod}`);
 

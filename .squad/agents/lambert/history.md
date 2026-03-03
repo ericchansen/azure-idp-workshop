@@ -18,3 +18,17 @@ Azure IDP Workshop — interactive demo comparing Azure Document Intelligence (D
   - Unit test `test_module_2_page` updated: asserts "Unstructured" instead of "Prebuilt".
 - **Pattern**: Module 2 now shares the same CU custom analysis pattern as Module 3 (POST to `/api/cu/custom` with JSON body containing `sample`, `fields`, `analyzer_id`).
 - **E2E test expectations** were already pre-aligned for "Unstructured" naming in existing test files.
+- **Module Consolidation (2025-07-18)**: Merged Module 3 into Module 2, deleted module3.html.
+  - Module 2 title: "Semantic Extraction & Custom Fields" (was "Unstructured Documents — When DI Falls Short")
+  - Added `sentiment` field to Alpine.js `fields` array (5 fields total: summary, key_parties, obligations, risk_level, sentiment)
+  - Added Custom Field Definitions display UI with name/description/type badges (from Module 3)
+  - Merged educational content: data flow diagram now shows full GPT-4.1 → Structured Fields pipeline, IaC includes text-embedding-3-large in all 3 tabs, production use cases merged
+  - Button text: "🧠 Run CU Custom + DI Layout" (from Module 3)
+  - Teaching point merged: combines "DI Falls Short" + "CU's Superpower" messaging
+  - Comparison guide: GenAI vs Deterministic, Schema-Driven No Training, Cost vs Value
+  - Removed "Next: Module 3" forward reference from teaching point
+  - index.html: Module 3 card removed, grid changed from 4-col to 3-col, Module 2 card updated
+  - base.html: Module 3 nav link removed, Module 2 nav text changed to "Semantic & Custom"
+  - guide.html: Decision tree wizard removed, replaced with "Choose DI if.../Choose CU if..." summary cards
+  - E2E test heading assertions updated: `/Module 2.*Unstructured/` → `/Module 2.*Semantic/`
+  - API endpoints unchanged: `/api/di/layout` + `/api/cu/custom` with `workshopContract` analyzer
