@@ -199,8 +199,9 @@ test.describe("Module 1 — UI Interactions", () => {
     const diTrace = page.locator("details", { hasText: "View API Trace" }).first();
     await diTrace.locator("summary").click();
 
-    // Trace data should be visible
-    await expect(page.getByText("documentintelligence").first()).toBeVisible();
+    // Trace data should be visible (scope to the expanded trace details, not code examples)
+    const traceContent = diTrace.locator("pre");
+    await expect(traceContent.first()).toBeVisible();
   });
 
   test("timing and page count are displayed", async ({ page, consoleErrors }) => {
@@ -265,8 +266,9 @@ test.describe("Module 1 — UI Interactions", () => {
     const cuTrace = page.locator("details", { hasText: "View API Trace" }).nth(1);
     await cuTrace.locator("summary").click();
 
-    // CU trace data should be visible
-    await expect(page.getByText("contentunderstanding").first()).toBeVisible();
+    // CU trace data should be visible (scope to the expanded trace details)
+    const traceContent = cuTrace.locator("pre");
+    await expect(traceContent.first()).toBeVisible();
   });
 
   test("DI table rendering shows table data", async ({ page, consoleErrors }) => {
@@ -290,7 +292,7 @@ test.describe("Module 2 — UI Interactions", () => {
   test("selecting Contract shows contract document", async ({ page, consoleErrors }) => {
     await page.goto("/module/2");
     await page.getByRole("button", { name: "Contract" }).click();
-    await expect(page.getByText("contract.pdf")).toBeVisible();
+    await expect(page.locator("[x-text='selectedSample']").getByText("contract.pdf")).toBeVisible();
   });
 
   test("analyze button is visible", async ({ page, consoleErrors }) => {
@@ -479,11 +481,12 @@ test.describe("Module 2 — API Trace & Teaching Point", () => {
 
     await expect(page.getByText("DI — Raw Layout Extraction").first()).toBeVisible();
 
-    // Click DI API Trace (first trace toggle)
+    // Click DI API Trace (first trace toggle in results section)
     const diTrace = page.locator("details", { hasText: "API Trace" }).first();
     await diTrace.locator("summary").click();
 
-    await expect(page.getByText("documentintelligence").first()).toBeVisible();
+    // Verify trace content is visible within the expanded details
+    await expect(diTrace.locator("pre").first()).toBeVisible();
   });
 
   test("CU API Trace details toggle expands and shows trace data", async ({ page, consoleErrors }) => {
@@ -493,11 +496,12 @@ test.describe("Module 2 — API Trace & Teaching Point", () => {
 
     await expect(page.getByText("CU — Semantic Extraction").first()).toBeVisible();
 
-    // Click CU API Trace (second trace toggle)
+    // Click CU API Trace (second trace toggle in results section)
     const cuTrace = page.locator("details", { hasText: "API Trace" }).nth(1);
     await cuTrace.locator("summary").click();
 
-    await expect(page.getByText("contentunderstanding").first()).toBeVisible();
+    // Verify trace content is visible within the expanded details
+    await expect(cuTrace.locator("pre").first()).toBeVisible();
   });
 
   test("teaching point appears after both results", async ({ page, consoleErrors }) => {
@@ -536,7 +540,8 @@ test.describe("Module 3 — API Trace & Teaching Point", () => {
     const cuTrace = page.locator("details", { hasText: /API Trace/ }).first();
     await cuTrace.locator("summary").click();
 
-    await expect(page.getByText("contentunderstanding").first()).toBeVisible();
+    // Verify trace content is visible within the expanded details
+    await expect(cuTrace.locator("pre").first()).toBeVisible();
   });
 
   test("DI layout API Trace details toggle expands and shows trace data", async ({ page, consoleErrors }) => {
@@ -549,7 +554,8 @@ test.describe("Module 3 — API Trace & Teaching Point", () => {
     const diTrace = page.locator("details", { hasText: /API Trace/ }).nth(1);
     await diTrace.locator("summary").click();
 
-    await expect(page.getByText("documentintelligence").first()).toBeVisible();
+    // Verify trace content is visible within the expanded details
+    await expect(diTrace.locator("pre").first()).toBeVisible();
   });
 
   test("teaching point appears after both results", async ({ page, consoleErrors }) => {

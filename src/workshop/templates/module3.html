@@ -10,6 +10,282 @@
     </p>
 </div>
 
+<!-- Architecture & Setup -->
+<details class="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg">
+    <summary class="cursor-pointer p-5 font-semibold text-emerald-900 hover:text-emerald-700">
+        🏗️ Architecture & Setup — What's Happening Under the Hood
+    </summary>
+    <div class="px-5 pb-5 space-y-6">
+        <!-- Data Flow Diagram -->
+        <div>
+            <h4 class="font-semibold text-emerald-800 mb-3">📐 Data Flow</h4>
+            <div class="bg-white rounded-lg border p-4 overflow-x-auto">
+                <div class="flex items-center justify-center gap-2 text-xs font-mono min-w-[700px]">
+                    <div class="bg-blue-100 border-2 border-blue-400 rounded-lg px-3 py-2 text-center">
+                        <div class="font-bold text-blue-800">Browser</div>
+                        <div class="text-blue-600">Alpine.js UI</div>
+                    </div>
+                    <div class="text-gray-400 font-bold">→</div>
+                    <div class="bg-green-100 border-2 border-green-400 rounded-lg px-3 py-2 text-center">
+                        <div class="font-bold text-green-800">FastAPI</div>
+                        <div class="text-green-600">/api/cu/custom</div>
+                        <div class="text-green-600">/api/di/layout</div>
+                    </div>
+                    <div class="text-gray-400 font-bold">→</div>
+                    <div class="bg-purple-100 border-2 border-purple-400 rounded-lg px-3 py-2 text-center">
+                        <div class="font-bold text-purple-800">Azure AI Services</div>
+                        <div class="text-purple-600">Managed Identity auth</div>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <div class="text-gray-400 font-bold">→</div>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <div class="bg-purple-50 border border-purple-300 rounded px-3 py-1.5 text-center">
+                            <div class="font-bold text-purple-700">CU Custom Analyzer</div>
+                            <div class="text-purple-600">fieldSchema → GPT-4.1</div>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-300 rounded px-3 py-1.5 text-center">
+                            <div class="font-bold text-blue-700">DI</div>
+                            <div class="text-blue-600">prebuilt-layout</div>
+                        </div>
+                    </div>
+                    <div class="text-gray-400 font-bold">→</div>
+                    <div class="bg-orange-50 border border-orange-300 rounded px-3 py-1.5 text-center">
+                        <div class="font-bold text-orange-700">GPT-4.1</div>
+                        <div class="text-orange-600">GenAI inference</div>
+                    </div>
+                    <div class="text-gray-400 font-bold">→</div>
+                    <div class="bg-emerald-100 border-2 border-emerald-400 rounded-lg px-3 py-2 text-center">
+                        <div class="font-bold text-emerald-800">Structured Fields</div>
+                        <div class="text-emerald-600">summary, risk, etc.</div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">CU custom analyzer is created once with a field schema, then reused for each document. GPT-4.1 powers the GenAI inference step that extracts your custom fields.</p>
+        </div>
+
+        <!-- What are we comparing -->
+        <div>
+            <h4 class="font-semibold text-emerald-800 mb-2">🔬 What Are We Comparing?</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <div class="font-semibold text-purple-800 mb-1">🟣 CU Custom Fields</div>
+                    <p class="text-sm text-gray-700">CU creates a custom analyzer with YOUR field definitions. It uses GPT-4.1 to understand the document and infer each field — summaries, entities, sentiment, risk. No training data needed.</p>
+                </div>
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="font-semibold text-blue-800 mb-1">🔵 DI Layout (Baseline)</div>
+                    <p class="text-sm text-gray-700">DI can only extract text and layout. It has no concept of "summarize this" or "assess risk". Shown here as a baseline to demonstrate what CU adds.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- When to use in production -->
+        <div>
+            <h4 class="font-semibold text-emerald-800 mb-2">🏭 When to Use This in Production</h4>
+            <ul class="text-sm space-y-1 list-disc list-inside text-gray-700">
+                <li><strong>Ad-hoc document analysis</strong> — define fields without training a model</li>
+                <li><strong>Contract intelligence</strong> — extract parties, obligations, deadlines, risk</li>
+                <li><strong>Compliance review</strong> — infer sentiment, flag issues, categorize documents</li>
+                <li><strong>Research paper analysis</strong> — extract methodology, findings, citations</li>
+                <li><strong>Any scenario where you need structured data from unstructured documents</strong></li>
+            </ul>
+        </div>
+
+        <!-- Try It Yourself -->
+        <div x-data="{ tryTab: 'python' }">
+            <h4 class="font-semibold text-emerald-800 mb-3">🔬 Try It Yourself</h4>
+            <div class="flex gap-2 mb-3">
+                <button @click="tryTab = 'python'" :class="tryTab === 'python' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'" class="text-xs px-3 py-1.5 rounded font-medium transition-all">🐍 Python SDK</button>
+                <button @click="tryTab = 'curl'" :class="tryTab === 'curl' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'" class="text-xs px-3 py-1.5 rounded font-medium transition-all">🌐 cURL</button>
+            </div>
+            <div x-show="tryTab === 'python'">
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-python"># pip install azure-ai-contentunderstanding azure-identity
+from azure.ai.contentunderstanding import ContentUnderstandingClient
+from azure.identity import DefaultAzureCredential
+
+endpoint = "https://&lt;your-resource&gt;.cognitiveservices.azure.com"
+client = ContentUnderstandingClient(endpoint, DefaultAzureCredential())
+
+# Step 1: Define custom fields (your schema)
+analyzer_def = {
+    "description": "Contract analyzer with sentiment",
+    "scenario": "document",
+    "fieldSchema": {
+        "fields": {
+            "summary": {"type": "string", "description": "2-3 sentence summary"},
+            "key_parties": {"type": "string", "description": "Names of all parties"},
+            "obligations": {"type": "string", "description": "Key obligations"},
+            "risk_level": {"type": "string", "description": "Risk: low/medium/high"},
+            "sentiment": {"type": "string", "description": "Sentiment: positive/neutral/negative"},
+        }
+    },
+    "config": {
+        "baseAnalyzerId": "prebuilt-document",
+        "models": {"completion": "gpt-4.1"}
+    }
+}
+
+# Step 2: Create the analyzer (one-time, reusable)
+client.begin_create_analyzer("my-analyzer", body=analyzer_def, allow_replace=True).result()
+
+# Step 3: Analyze any document
+with open("contract.pdf", "rb") as f:
+    poller = client.begin_analyze("my-analyzer", body=f.read(), content_type="application/octet-stream")
+result = poller.result()
+
+# Step 4: Access inferred fields
+for content in result["contents"]:
+    for field_name, field_data in content["fields"].items():
+        print(f"{field_name}: {field_data.get('valueString', 'N/A')}")</code></pre>
+            </div>
+            <div x-show="tryTab === 'curl'">
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-bash"># Get an access token (requires az login)
+TOKEN=$(az account get-access-token --resource https://cognitiveservices.azure.com --query accessToken -o tsv)
+ENDPOINT="https://&lt;your-resource&gt;.cognitiveservices.azure.com"
+
+# --- Step 1: Create a Custom Analyzer with field schema ---
+curl -X PUT "$ENDPOINT/contentunderstanding/analyzers/my-contract?api-version=2025-05-01-preview" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Contract analyzer with sentiment",
+    "scenario": "document",
+    "fieldSchema": {
+      "fields": {
+        "summary": {"type": "string", "description": "2-3 sentence summary"},
+        "key_parties": {"type": "string", "description": "Names of all parties"},
+        "obligations": {"type": "string", "description": "Key obligations"},
+        "risk_level": {"type": "string", "description": "Risk: low/medium/high"},
+        "sentiment": {"type": "string", "description": "Sentiment: positive/neutral/negative"}
+      }
+    },
+    "config": {
+      "baseAnalyzerId": "prebuilt-document",
+      "models": {"completion": "gpt-4.1"}
+    }
+  }'
+
+# --- Step 2: Analyze a document with the custom analyzer ---
+CU_URL=$(curl -s -D - -X POST "$ENDPOINT/contentunderstanding/analyzers/my-contract:analyze?api-version=2025-05-01-preview" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/pdf" \
+  --data-binary @contract.pdf | grep -i operation-location | tr -d '\r' | cut -d' ' -f2)
+
+# --- Step 3: Poll for result ---
+curl -s -H "Authorization: Bearer $TOKEN" "$CU_URL" | python -m json.tool</code></pre>
+            </div>
+        </div>
+
+        <!-- IaC -->
+        <div x-data="{ iacTab: 'bicep' }">
+            <h4 class="font-semibold text-emerald-800 mb-3">🧱 Infrastructure as Code</h4>
+            <div class="flex gap-2 mb-3">
+                <button @click="iacTab = 'bicep'" :class="iacTab === 'bicep' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'" class="text-xs px-3 py-1.5 rounded font-medium transition-all">Bicep</button>
+                <button @click="iacTab = 'terraform'" :class="iacTab === 'terraform' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'" class="text-xs px-3 py-1.5 rounded font-medium transition-all">Terraform</button>
+                <button @click="iacTab = 'cli'" :class="iacTab === 'cli' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'" class="text-xs px-3 py-1.5 rounded font-medium transition-all">Azure CLI</button>
+            </div>
+            <div x-show="iacTab === 'bicep'">
+                <p class="text-xs text-gray-500 mb-2">CU custom analyzers require BOTH GPT-4.1 and text-embedding-3-large model deployments:</p>
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-bash">resource aiServices 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
+  name: 'my-ai-services'
+  location: 'eastus'
+  kind: 'AIServices'
+  sku: { name: 'S0' }
+  properties: { customSubDomainName: 'my-ai-services' }
+}
+
+// GPT-4.1 — powers CU's GenAI field inference
+resource gpt41 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+  parent: aiServices
+  name: 'gpt-41'
+  sku: { name: 'GlobalStandard', capacity: 10 }
+  properties: { model: { format: 'OpenAI', name: 'gpt-4.1', version: '2025-04-14' } }
+}
+
+// Text embedding — required for CU's semantic understanding
+resource embedding 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+  parent: aiServices
+  name: 'text-embedding-3-large'
+  dependsOn: [gpt41]
+  sku: { name: 'Standard', capacity: 10 }
+  properties: { model: { format: 'OpenAI', name: 'text-embedding-3-large', version: '1' } }
+}</code></pre>
+            </div>
+            <div x-show="iacTab === 'terraform'">
+                <p class="text-xs text-gray-500 mb-2">Equivalent Terraform (HCL) with both required deployments:</p>
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-bash">resource "azurerm_cognitive_account" "ai_services" {
+  name                  = "my-ai-services"
+  location              = azurerm_resource_group.rg.location
+  resource_group_name   = azurerm_resource_group.rg.name
+  kind                  = "AIServices"
+  sku_name              = "S0"
+  custom_subdomain_name = "my-ai-services"
+}
+
+# GPT-4.1 — powers CU's GenAI field inference
+resource "azurerm_cognitive_deployment" "gpt41" {
+  name                 = "gpt-41"
+  cognitive_account_id = azurerm_cognitive_account.ai_services.id
+  sku { name = "GlobalStandard" capacity = 10 }
+  model {
+    format  = "OpenAI"
+    name    = "gpt-4.1"
+    version = "2025-04-14"
+  }
+}
+
+# Text embedding — required for CU's semantic understanding
+resource "azurerm_cognitive_deployment" "embedding" {
+  name                 = "text-embedding-3-large"
+  cognitive_account_id = azurerm_cognitive_account.ai_services.id
+  depends_on           = [azurerm_cognitive_deployment.gpt41]
+  sku { name = "Standard" capacity = 10 }
+  model {
+    format  = "OpenAI"
+    name    = "text-embedding-3-large"
+    version = "1"
+  }
+}</code></pre>
+            </div>
+            <div x-show="iacTab === 'cli'">
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-bash"># Create AI Services resource
+az cognitiveservices account create \
+    --name my-ai-services \
+    --resource-group my-rg \
+    --kind AIServices \
+    --sku S0 \
+    --location eastus \
+    --custom-domain my-ai-services
+
+# Deploy GPT-4.1 (required for CU custom analyzers)
+az cognitiveservices account deployment create \
+    --name my-ai-services \
+    --resource-group my-rg \
+    --deployment-name gpt-41 \
+    --model-name gpt-4.1 \
+    --model-version 2025-04-14 \
+    --model-format OpenAI \
+    --sku-capacity 10 \
+    --sku-name GlobalStandard
+
+# Deploy text-embedding-3-large (required for CU)
+az cognitiveservices account deployment create \
+    --name my-ai-services \
+    --resource-group my-rg \
+    --deployment-name text-embedding-3-large \
+    --model-name text-embedding-3-large \
+    --model-version 1 \
+    --model-format OpenAI \
+    --sku-capacity 10 \
+    --sku-name Standard
+
+# Install Python SDK
+pip install azure-ai-contentunderstanding azure-identity</code></pre>
+            </div>
+        </div>
+    </div>
+</details>
+
 <div x-data="{
     cuResult: null, diResult: null, loading: false,
     selectedSample: 'contract.pdf',
@@ -59,6 +335,16 @@
                     <span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full" x-text="field.type"></span>
                 </div>
             </template>
+        </div>
+        <!-- What to look for -->
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
+            <h3 class="font-semibold text-amber-900 text-sm mb-2">🎯 What to Look For</h3>
+            <ul class="text-xs text-amber-800 space-y-1 list-disc list-inside">
+                <li><strong>Custom fields</strong> — These fields were defined by YOU, not pre-trained. CU uses GenAI to infer them.</li>
+                <li><strong>DI comparison</strong> — DI runs alongside to show what you'd get without CU. It can't extract any of these fields.</li>
+                <li><strong>Sentiment analysis</strong> — Module 3 adds a sentiment field that Module 2 didn't have. Watch if CU detects it.</li>
+                <li><strong>Token usage</strong> — Check the API trace for GPT-4.1 token consumption — this is the cost driver.</li>
+            </ul>
         </div>
         <div class="mt-4 flex gap-3">
             <button @click="startAnalysis()" :disabled="loading"
@@ -171,6 +457,25 @@
         </div>
     </div>
 
+    <!-- Comparison guide -->
+    <div x-show="cuResult && diResult && !hasError(cuResult) && !hasError(diResult)" x-transition class="mt-6 bg-sky-50 border border-sky-200 rounded-lg p-5">
+        <h3 class="font-semibold text-sky-900 mb-2">🔍 Side-by-Side Comparison Guide</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+                <div class="font-medium text-sky-800 mb-1">🧠 GenAI vs Deterministic</div>
+                <p class="text-xs text-gray-600">CU uses GPT-4.1 to infer fields. Results may vary slightly between runs. DI is deterministic — same input always gives same output.</p>
+            </div>
+            <div>
+                <div class="font-medium text-sky-800 mb-1">📋 Schema-Driven</div>
+                <p class="text-xs text-gray-600">You defined 5 fields. CU extracted all 5. Try changing the field descriptions and re-running — CU adapts instantly, no retraining.</p>
+            </div>
+            <div>
+                <div class="font-medium text-sky-800 mb-1">💡 No Training Data</div>
+                <p class="text-xs text-gray-600">Traditional ML document extraction requires labeled training data. CU needs zero — just a description of what you want.</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Teaching point -->
     <div x-show="cuResult && diResult" class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-5">
         <h3 class="font-semibold text-yellow-900 mb-2">💡 What to Notice — CU's Superpower</h3>
@@ -247,6 +552,43 @@ for content in result["contents"]:
                     <div class="bg-white p-3 rounded border"><span class="text-blue-700 font-medium">DI Layout:</span> $0.01/page (text only)</div>
                 </div>
                 <p class="text-xs text-gray-500 mt-1">CU Custom costs more because it runs GPT-4.1 inference on every page to extract your custom fields.</p>
+            </div>
+            <div>
+                <h4 class="font-semibold text-indigo-800 mb-2">🖥️ CLI Setup</h4>
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-bash"># Full setup for CU Custom Fields
+# 1. Create AI Services resource
+az cognitiveservices account create \
+    --name my-ai-services \
+    --resource-group my-rg \
+    --kind AIServices \
+    --sku S0 \
+    --location eastus \
+    --custom-domain my-ai-services
+
+# 2. Deploy GPT-4.1 (required for CU custom analyzers)
+az cognitiveservices account deployment create \
+    --name my-ai-services \
+    --resource-group my-rg \
+    --deployment-name gpt-41 \
+    --model-name gpt-4.1 \
+    --model-version 2025-04-14 \
+    --model-format OpenAI \
+    --sku-capacity 10 \
+    --sku-name GlobalStandard
+
+# 3. Deploy text-embedding-3-large (required for CU)
+az cognitiveservices account deployment create \
+    --name my-ai-services \
+    --resource-group my-rg \
+    --deployment-name text-embedding-3-large \
+    --model-name text-embedding-3-large \
+    --model-version 1 \
+    --model-format OpenAI \
+    --sku-capacity 10 \
+    --sku-name Standard
+
+# 4. Install Python SDK
+pip install azure-ai-contentunderstanding azure-identity</code></pre>
             </div>
         </div>
     </details>

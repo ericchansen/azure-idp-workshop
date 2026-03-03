@@ -193,7 +193,9 @@ test.describe("Module 2 — Analysis Workflow", () => {
     ).toBeVisible();
 
     // CU should show semantic fields that DI cannot extract
-    await expect(page.getByText("summary").first()).toBeVisible();
+    const cuHeading = page.getByText("CU — Semantic Extraction").first();
+    const cuResultPanel = cuHeading.locator("..").locator("..");
+    await expect(cuResultPanel.getByText("summary").first()).toBeVisible();
     await expect(page.getByText("Analysis Failed")).not.toBeVisible();
   });
 });
@@ -214,9 +216,11 @@ test.describe("Module 3 — Analysis Workflow", () => {
     await page.goto("/module/3");
     await page.getByRole("button", { name: /Run CU Custom/i }).click();
 
-    // Custom fields should appear
-    await expect(page.getByText("summary").first()).toBeVisible();
-    await expect(page.getByText("risk_level").first()).toBeVisible();
+    // Custom fields should appear in the CU result panel
+    const cuHeading = page.getByText("CU — Custom Inferred Fields");
+    const cuResultPanel = cuHeading.locator("..").locator("..");
+    await expect(cuResultPanel.getByText("summary").first()).toBeVisible();
+    await expect(cuResultPanel.getByText("risk_level").first()).toBeVisible();
     await expect(page.getByText("Analysis Failed")).not.toBeVisible();
   });
 });

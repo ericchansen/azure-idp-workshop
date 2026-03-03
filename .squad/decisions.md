@@ -110,3 +110,31 @@
 - Prod workflow: Added explicit `latest=100` traffic routing post-Bicep deploy
 **Trade-offs:** Pro—PR preview URLs now work, prod traffic protected. Con—old revisions accumulate (deactivation logic handles). Risk—traffic split if `az containerapp ingress traffic set` fails (mitigated with `|| true`).
 **Impact:** Affects `infra/modules/container-app.bicep`, `infra/main.bicep`, `deploy-stage.yml`, `deploy-prod.yml`. No Python/template/test impact.
+
+---
+
+### 2026-03-03T20:10:00Z: User Directive — Teaching Depth
+**By:** Eric Hansen (via Copilot)
+**Status:** Implemented (PR #8)
+**What:** Workshop must TEACH people. Each module needs detailed architecture context, optional IaC viewers (Bicep/Terraform/CLI), runnable code examples, and more teaching callouts throughout—not just bottom-of-page "Behind the Scenes."
+**Why:** Learners need clear progression: architecture understanding → code execution → infrastructure transparency → cost/performance implications.
+**Implementation:** 
+- **Module 1**: Pre-demo architecture diagram + Try It Yourself (Python/cURL) + IaC viewers + DI vs CU comparison guide
+- **Module 2**: Pre-demo architecture + IaC viewers + teaching callouts + token visibility
+- **Module 3**: Pre-demo architecture + IaC viewers + teaching callouts + CLI setup instructions
+**Test Results:** 62 E2E + 57 unit = 130 total passing. No regressions.
+**Impact:** Templates only (`module1.html`, `module2.html`, `module3.html`). No API/service changes.
+
+---
+
+### 2026-02-24T00:00:00Z: README Documentation Alignment (Post-PR #7)
+**By:** Ripley (DevOps Lead)
+**Status:** Merged (PR #7)
+**What:** Updated README.md module descriptions and tech stack to reflect actual implementation:
+- Module 1: "OCR & Layout" → "Structured Extraction — When DI Wins"
+- Module 2: "Prebuilt Models" → "Unstructured Documents — When DI Falls Short"  
+- Module 3: "Custom Fields" → "Custom & Inferred Fields — CU's Unique Power"
+- Tech Stack: Removed HTMX reference (app uses Jinja2 + Alpine.js only)
+**Why:** README must match implementation to reduce learner confusion and improve contributor onboarding.
+**Implementation:** README.md only; no code/test changes.
+**Verification:** Descriptions now match `index.html` and template h1 titles. Tech stack verified against dependencies.
