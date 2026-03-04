@@ -1,0 +1,14 @@
+# Default owner
+* @ericchansen
+
+# Infrastructure
+/infra/ @ericchansen
+
+# CI/CD
+/.github/workflows/ @ericchansen
+
+# Source code
+/src/ @ericchansen
+
+# Tests
+/tests/ @ericchansen

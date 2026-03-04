@@ -67,6 +67,20 @@ FastAPI (Jinja2 + Alpine.js)
     └─► Azure Blob Storage (samples)
 ```
 
+## Repository Settings
+
+### Branch Protection (Recommended)
+
+To maintain code quality and prevent accidental breaking changes, configure the following branch protection rules on the main branch via GitHub UI:
+
+- **Require status checks to pass before merging**:
+  - `CI / Lint & Test`
+  - `CI / Docker Build & Scan`
+  - `CI / E2E Structural Tests`
+- **Require at least 1 pull request review** before merging
+- **Require branches to be up to date before merging**
+- **Do not allow bypassing** these settings (enforce for administrators)
+
 ## License
 
 MIT

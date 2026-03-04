@@ -1,4 +1,4 @@
-// Role assignment — assigns a role to a principal at subscription scope
+// Role assignment — assigns a role to a principal at resource group scope
 
 @description('Principal ID')
 param principalId string
@@ -11,7 +11,7 @@ param roleDefinitionId string
 param principalType string = 'ServicePrincipal'
 
 resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, principalId, roleDefinitionId)
+  name: guid(resourceGroup().id, principalId, roleDefinitionId)
   properties: {
     principalId: principalId
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleDefinitionId)

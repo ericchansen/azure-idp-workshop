@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
-import time
 from typing import Any
+
+from azure.core.exceptions import HttpResponseError
 
 from workshop.config import settings
 from workshop.services.api_trace import ApiTrace, TraceTimer, sanitize_headers
@@ -40,17 +42,17 @@ def _get_credential():  # type: ignore[no-untyped-def]
     return DefaultAzureCredential()
 
 
-def analyze_layout(file_bytes: bytes, filename: str) -> dict[str, Any]:
+async def analyze_layout(file_bytes: bytes, filename: str) -> dict[str, Any]:
     """Run CU Layout analysis (prebuilt-layout analyzer). Returns result + API trace."""
-    return _analyze_prebuilt("prebuilt-layout", file_bytes, filename)
+    return await _analyze_prebuilt("prebuilt-layout", file_bytes, filename)
 
 
-def analyze_prebuilt(model_id: str, file_bytes: bytes, filename: str) -> dict[str, Any]:
+async def analyze_prebuilt(model_id: str, file_bytes: bytes, filename: str) -> dict[str, Any]:
     """Run a CU prebuilt analyzer (invoice, receipt, etc.). Returns result + API trace."""
-    return _analyze_prebuilt(model_id, file_bytes, filename)
+    return await _analyze_prebuilt(model_id, file_bytes, filename)
 
 
-def analyze_custom(
+async def analyze_custom(
     analyzer_id: str, file_bytes: bytes, filename: str, fields: list[dict[str, str]] | None = None
 ) -> dict[str, Any]:
     """Run a CU custom analyzer with optional field definitions. Returns result + API trace."""
@@ -66,19 +68,28 @@ def analyze_custom(
 
     with TraceTimer() as timer:
         try:
-            _ensure_analyzer(client, analyzer_id, fields)
+            created = await asyncio.to_thread(_ensure_analyzer, client, analyzer_id, fields)
+            if created:
+                await asyncio.sleep(2)
 
-            poller = client.begin_analyze_binary(
-                analyzer_id=analyzer_id,
-                binary_input=file_bytes,
-                content_type="application/octet-stream",
-            )
-            result = poller.result()
+            def _run_analysis() -> Any:
+                poller = client.begin_analyze_binary(
+                    analyzer_id=analyzer_id,
+                    binary_input=file_bytes,
+                    content_type="application/octet-stream",
+                )
+                return poller.result()
+
+            result = await asyncio.to_thread(_run_analysis)
             trace.response_status = 200
             result_dict = _result_to_dict(result)
             trace.response_body = result_dict
+        except HttpResponseError as e:
+            trace.error = f"HttpResponseError: {e}"
+            trace.response_status = e.status_code or 500
+            result_dict = {}
         except Exception as e:
-            trace.error = str(e)
+            trace.error = f"{type(e).__name__}: {e}"
             trace.response_status = 500
             result_dict = {}
 
@@ -86,7 +97,7 @@ def analyze_custom(
     return {"result": result_dict, "trace": trace.to_dict()}
 
 
-def _analyze_prebuilt(analyzer_id: str, file_bytes: bytes, filename: str) -> dict[str, Any]:
+async def _analyze_prebuilt(analyzer_id: str, file_bytes: bytes, filename: str) -> dict[str, Any]:
     """Internal: run a prebuilt CU analyzer."""
     client = _get_client()
     trace = ApiTrace(service="CU", operation=analyzer_id)
@@ -98,17 +109,25 @@ def _analyze_prebuilt(analyzer_id: str, file_bytes: bytes, filename: str) -> dic
 
     with TraceTimer() as timer:
         try:
-            poller = client.begin_analyze_binary(
-                analyzer_id=analyzer_id,
-                binary_input=file_bytes,
-                content_type="application/octet-stream",
-            )
-            result = poller.result()
+
+            def _run() -> Any:
+                poller = client.begin_analyze_binary(
+                    analyzer_id=analyzer_id,
+                    binary_input=file_bytes,
+                    content_type="application/octet-stream",
+                )
+                return poller.result()
+
+            result = await asyncio.to_thread(_run)
             trace.response_status = 200
             result_dict = _result_to_dict(result)
             trace.response_body = _summarize_cu_result(result_dict)
+        except HttpResponseError as e:
+            trace.error = f"HttpResponseError: {e}"
+            trace.response_status = e.status_code or 500
+            result_dict = {}
         except Exception as e:
-            trace.error = str(e)
+            trace.error = f"{type(e).__name__}: {e}"
             trace.response_status = 500
             result_dict = {}
 
@@ -134,11 +153,12 @@ def _ensure_defaults(client: Any) -> None:
         logger.warning("Failed to set CU defaults: %s", e)
 
 
-def _ensure_analyzer(client: Any, analyzer_id: str, fields: list[dict[str, str]] | None) -> None:
-    """Create or update a custom analyzer if it doesn't exist."""
+def _ensure_analyzer(client: Any, analyzer_id: str, fields: list[dict[str, str]] | None) -> bool:
+    """Create a custom analyzer if it doesn't exist. Returns True if created."""
     _ensure_defaults(client)
     try:
         client.get_analyzer(analyzer_id)
+        return False
     except Exception:
         # Analyzer doesn't exist, create it
         analyzer_def: dict[str, Any] = {
@@ -160,8 +180,7 @@ def _ensure_analyzer(client: Any, analyzer_id: str, fields: list[dict[str, str]]
         client.begin_create_analyzer(
             analyzer_id=analyzer_id, resource=analyzer_def, allow_replace=True
         ).result()
-        # Brief pause for analyzer to become available
-        time.sleep(2)
+        return True
 
 
 def _result_to_dict(result: Any) -> dict[str, Any]:
