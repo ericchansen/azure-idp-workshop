@@ -448,16 +448,16 @@ test.describe("Error State — API Trace Toggles", () => {
     await page.getByRole("button", { name: "Receipt" }).click();
     await page.getByRole("button", { name: /Run Analysis/i }).click();
 
-    // CU error banner should appear
-    await expect(page.getByText("CU Analysis Failed")).toBeVisible();
+    // CU warning banner should appear (amber, not red — graceful degradation)
+    await expect(page.getByText("CU Analysis Unavailable")).toBeVisible();
 
-    // Click API Trace inside the CU error banner
-    const errorBanner = page.locator(".bg-red-50", { hasText: "CU Analysis Failed" });
-    const errorTrace = errorBanner.locator("details", { hasText: "API Trace" });
+    // Click API Trace inside the CU warning banner
+    const warningBanner = page.locator(".bg-amber-50", { hasText: "CU Analysis Unavailable" });
+    const errorTrace = warningBanner.locator("details", { hasText: "API Trace" });
     await errorTrace.locator("summary").click();
 
     // Trace data should be visible
-    await expect(errorBanner.getByText("contentunderstanding")).toBeVisible();
+    await expect(warningBanner.getByText("contentunderstanding")).toBeVisible();
   });
 
 });
