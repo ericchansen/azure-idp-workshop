@@ -408,16 +408,17 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
                 </div>
             </template>
             <template x-if="cuResult && hasError(cuResult)">
-                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
                     <div class="flex items-start gap-2">
-                        <span class="text-red-500 text-lg">⚠️</span>
+                        <span class="text-amber-500 text-lg">⚠️</span>
                         <div>
-                            <div class="font-medium text-red-800">CU Analysis Failed</div>
-                            <div class="text-sm text-red-600 mt-1 font-mono break-all" x-text="getError(cuResult)"></div>
+                            <div class="font-medium text-amber-800">CU Analysis Unavailable</div>
+                            <p class="text-sm text-amber-700 mt-1">Content Understanding encountered an issue. This may be due to model deployment warm-up or transient service conditions. DI results above are unaffected.</p>
+                            <div class="text-xs text-amber-600 mt-2 font-mono break-all" x-text="getError(cuResult)"></div>
                         </div>
                     </div>
                     <details class="mt-3">
-                        <summary class="cursor-pointer text-sm font-medium text-red-600">📡 API Trace</summary>
+                        <summary class="cursor-pointer text-sm font-medium text-amber-600">📡 API Trace</summary>
                         <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code x-text="JSON.stringify(cuResult?.trace, null, 2)"></code></pre>
                     </details>
                 </div>
