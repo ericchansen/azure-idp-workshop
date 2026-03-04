@@ -138,3 +138,89 @@
 **Why:** README must match implementation to reduce learner confusion and improve contributor onboarding.
 **Implementation:** README.md only; no code/test changes.
 **Verification:** Descriptions now match `index.html` and template h1 titles. Tech stack verified against dependencies.
+
+---
+
+### 2026-03-03T22:21Z: User Directive — Consolidate Module 2 and Module 3
+**By:** Eric Hansen (via Copilot)
+**What:** Module 2 (Unstructured Documents) and Module 3 (Custom Fields) use the same document (contract.pdf), same APIs (`/api/di/layout` + `/api/cu/custom`), same analyzer (`workshopContract`), and nearly identical custom fields. They should be combined into a single module. The only difference is Module 3 adds a `sentiment` field and shows the field definition UI.
+**Why:** User observation — the modules are redundant. Same demo, different framing. Should be one module.
+
+---
+
+### 2026-03-03T22:21Z: User Directive — Remove Interactive Decision Tree
+**By:** Eric Hansen (via Copilot)
+**What:** The interactive decision tree on the Decision Guide page is "silly" — remove it.
+**Why:** User preference — the step-by-step wizard doesn't add value.
+
+---
+
+### 2025-02-28T00:00:00Z: Consolidation Plan — Modules 2 & 3 + Decision Guide Refactor
+**By:** Ripley (DevOps Lead)
+**Status:** PLANNING (no implementation)
+**What:** Comprehensive consolidation plan addressing:
+1. **Module Consolidation:** Merge Modules 2 and 3 into single "Semantic Extraction & Custom Fields" module (both use contract.pdf, `/api/di/layout` + `/api/cu/custom`, `workshopContract` analyzer)
+2. **Decision Guide Refactor:** Remove interactive 4-step decision tree; keep comparison matrix table and scenario cards
+3. **Narrative Arc:** Module 1 (DI wins at structured) → Module 2 (CU wins at semantic with custom fields) → Decision Guide (static matrix + scenarios)
+
+**Blast Radius:**
+- **Templates:** Delete `module3.html`; merge into `module2.html`; edit `guide.html`, `index.html`, `base.html`
+- **Routes:** Delete `module_3()` from `server.py`; add 301 redirect `/module/3` → `/module/2`
+- **E2E Tests:** Remove ~25 tests (Module 3 blocks, decision tree tests); update nav assertions to expect 3 links (M1, M2, Guide)
+- **APIs:** No changes—`/api/di/layout` and `/api/cu/custom` work for both scenarios
+
+**Work Breakdown:**
+- Phase 1 (Vasquez): Test updates and validation
+- Phase 2 (Lambert): Template consolidation
+- Phase 3 (Hicks): Backend routes
+- Phase 4 (Vasquez + Ripley): Final testing and rollout
+
+**Success Criteria:** 70 E2E tests passing (down from 84), smoke tests pass, no console errors, field editing works, 301 redirect functional.
+
+---
+
+### 2025-07-18T00:00:00Z: Lambert — Module Consolidation Implementation
+**By:** Lambert (Frontend Dev)
+**Status:** Implemented on `feat/module-consolidation`
+**What:** Merged Module 3 ("Custom & Inferred Fields") into Module 2, consolidating from 3 modules to 2.
+- **Module 2 template:** Now titled "Semantic Extraction & Custom Fields". Added sentiment field (5th field), field definition display UI, merged educational content (IaC includes text-embedding-3-large), updated data flow diagram, teaching points, comparison guide.
+- **module3.html:** Deleted.
+- **index.html:** Module 3 card removed, grid switched from 4-col to 3-col, Module 2 card updated.
+- **base.html:** Module 3 nav link removed, Module 2 nav text updated.
+- **guide.html:** Interactive decision tree removed, replaced with static "Choose DI if.../Choose CU if..." summary cards. Comparison matrix and scenario cards preserved.
+- **E2E tests:** Heading assertions updated from "Unstructured" to "Semantic" for Module 2.
+
+**Why:** Module 2 and Module 3 were nearly identical—both called `/api/cu/custom` with `workshopContract` analyzer on the same document. The only differences were the sentiment field and field definition display. Consolidation eliminates redundancy and tightens the workshop narrative.
+
+**Impact:** No API/backend changes; E2E tests need re-run against deployed app after merge. Workshop flow is now: Module 1 (DI wins at structured) → Module 2 (CU wins at semantic + custom fields) → Decision Guide.
+
+---
+
+### 2025-07-19T00:00:00Z: E2E Test Consolidation for Module 2+3 Merge
+**By:** Vasquez (Tester)
+**Status:** Implemented
+**What:** Pruned all E2E tests referencing Module 3 and decision tree wizard after consolidation:
+- **Module 3 Tests Removed:** 11 tests across workshop.spec.ts, analysis-workflow.spec.ts, interactions.spec.ts, smoke.spec.ts, teaching-sections.spec.ts
+- **Decision Tree Wizard Tests Removed:** 7 tree path tests + 1 "Start Over" test
+- **Tests Retained:** All Module 1 tests, all Module 2 tests, Decision Guide comparison matrix and scenario cards tests
+- **Updates:** Homepage nav link assertions updated (3 links: M1, M2, Guide)
+- **Cleanup:** Removed unused `mockCUCustomErrorWithTrace` fixture; updated file header comment
+
+**Total Removed:** ~25 tests
+
+**Why:** Module 3 no longer exists as a separate page; decision tree wizard UI removed. Tests for removed features would fail against updated app.
+
+---
+
+### 2025-07-18T00:00:00Z: Teaching Section E2E Tests in Separate File
+**By:** Vasquez (Tester)
+**Status:** Implemented on `feat/educational-content`
+**What:** Created `tests/e2e/teaching-sections.spec.ts` as a dedicated test file for all educational teaching section coverage (17 tests across 3 modules) rather than adding to `interactions.spec.ts`.
+
+**Why:** 
+- `interactions.spec.ts` is already large (694 lines) and covers UI interactions, navigation, error states, and API traces
+- Teaching sections are a distinct feature category (Architecture & Setup, Try It Yourself tabs, IaC tabs, What to Look For, Comparison Guide)
+- Separation makes it easy to run just teaching section tests: `npx playwright test teaching-sections`
+- Follows existing pattern of feature-focused test files
+
+**Impact:** 17 new structural E2E tests added. Total structural E2E: 77 (was 60). Total E2E with smoke: 89. All new tests passing; no changes to existing test files.
