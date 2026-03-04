@@ -23,8 +23,10 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: production
+    outputs:
+      app_url: ${{ steps.deploy.outputs.app_url }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Azure Login
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2
@@ -34,6 +36,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Ensure infrastructure
+        id: infra
         uses: azure/arm-deploy@a1361c2c2cd398621955b16ca32e01c65ea340f5 # v2
         with:
           resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
@@ -42,6 +45,35 @@ jobs:
             environmentName=${{ env.ENVIRONMENT }}
             acrName=${{ env.ACR_NAME }}
           failOnStdErr: false
+
+      - name: Ensure role assignments
+        run: |
+          PRINCIPAL_ID="${{ steps.infra.outputs.identityPrincipalId }}"
+          RG_SCOPE="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.AZURE_RESOURCE_GROUP }}"
+
+          # Storage Blob Data Contributor
+          az role assignment create \
+            --assignee-object-id "$PRINCIPAL_ID" \
+            --assignee-principal-type ServicePrincipal \
+            --role "ba92f5b4-2d11-453d-a403-e96b0029c9fe" \
+            --scope "$RG_SCOPE" \
+            --only-show-errors 2>&1 || true
+
+          # Cognitive Services User
+          az role assignment create \
+            --assignee-object-id "$PRINCIPAL_ID" \
+            --assignee-principal-type ServicePrincipal \
+            --role "a97b65f3-24c7-4388-baec-2e87135dc908" \
+            --scope "$RG_SCOPE" \
+            --only-show-errors 2>&1 || true
+
+          # ACR Pull
+          az role assignment create \
+            --assignee-object-id "$PRINCIPAL_ID" \
+            --assignee-principal-type ServicePrincipal \
+            --role "7f951dda-4ed3-4680-a7ca-43fe172d538d" \
+            --scope "$RG_SCOPE" \
+            --only-show-errors 2>&1 || true
 
       - name: Re-authenticate
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2
@@ -62,24 +94,20 @@ jobs:
           docker push ${IMAGE_REF}
           echo "image-ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
 
-      - name: Re-authenticate for app deploy
-        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Deploy app with image
+      - name: Deploy app revision
         id: deploy
-        uses: azure/arm-deploy@a1361c2c2cd398621955b16ca32e01c65ea340f5 # v2
-        with:
-          resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
-          template: infra/main.bicep
-          parameters: >-
-            environmentName=${{ env.ENVIRONMENT }}
-            acrName=${{ env.ACR_NAME }}
-            containerImage=${{ steps.image.outputs.image-ref }}
-          failOnStdErr: false
+        run: |
+          az containerapp update \
+            --name idp-workshop \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --image ${{ steps.image.outputs.image-ref }} \
+            --output none
+
+          APP_URL=$(az containerapp show \
+            --name idp-workshop \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "app_url=https://${APP_URL}" >> "$GITHUB_OUTPUT"
 
       - name: Route traffic to latest revision
         run: |
@@ -90,4 +118,35 @@ jobs:
             --output none
 
       - name: Show App URL
-        run: echo "🚀 Production deployed to ${{ steps.deploy.outputs.appUrl }}"
+        run: echo "🚀 Production deployed to ${{ steps.deploy.outputs.app_url }}"
+
+  smoke-test:
+    name: Production Smoke Test
+    needs: deploy
+    if: needs.deploy.outputs.app_url != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium msedge
+
+      - name: Run smoke tests against production
+        run: npx playwright test --grep Smoke --project="Desktop Edge"
+        env:
+          BASE_URL: ${{ needs.deploy.outputs.app_url }}
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: playwright-report-production
+          path: playwright-report/
+          retention-days: 14
