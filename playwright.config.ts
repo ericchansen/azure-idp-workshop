@@ -1,8 +1,6 @@
 import { defineConfig } from "@playwright/test";
 
-const BASE_URL =
-  process.env.BASE_URL ||
-  "https://idp-workshop.yellowbush-cb9b34cb.eastus.azurecontainerapps.io";
+const BASE_URL = process.env.BASE_URL || "http://localhost:8080";
 
 export default defineConfig({
   testDir: "./tests/e2e",

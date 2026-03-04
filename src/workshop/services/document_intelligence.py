@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any
+
+from azure.core.exceptions import HttpResponseError
 
 from workshop.config import settings
 from workshop.services.api_trace import ApiTrace, TraceTimer, sanitize_headers
@@ -44,7 +47,7 @@ def _make_request(file_bytes: bytes):  # type: ignore[no-untyped-def]
     return AnalyzeDocumentRequest(bytes_source=file_bytes)
 
 
-def analyze_layout(file_bytes: bytes, filename: str) -> dict[str, Any]:
+async def analyze_layout(file_bytes: bytes, filename: str) -> dict[str, Any]:
     """Run DI Layout analysis on a document. Returns result + API trace."""
     client = _get_client()
     trace = ApiTrace(service="DI", operation="layout")
@@ -57,17 +60,24 @@ def analyze_layout(file_bytes: bytes, filename: str) -> dict[str, Any]:
 
     with TraceTimer() as timer:
         try:
-            poller = client.begin_analyze_document(
-                model_id="prebuilt-layout",
-                body=_make_request(file_bytes),
-            )
-            result = poller.result()
+
+            def _run() -> Any:
+                poller = client.begin_analyze_document(
+                    model_id="prebuilt-layout",
+                    body=_make_request(file_bytes),
+                )
+                return poller.result()
+
+            result = await asyncio.to_thread(_run)
             trace.response_status = 200
-            # Convert result to serializable dict
             result_dict = _result_to_dict(result)
             trace.response_body = _summarize_result(result_dict)
+        except HttpResponseError as e:
+            trace.error = f"HttpResponseError: {e}"
+            trace.response_status = e.status_code or 500
+            result_dict = {}
         except Exception as e:
-            trace.error = str(e)
+            trace.error = f"{type(e).__name__}: {e}"
             trace.response_status = 500
             result_dict = {}
 
@@ -75,7 +85,7 @@ def analyze_layout(file_bytes: bytes, filename: str) -> dict[str, Any]:
     return {"result": result_dict, "trace": trace.to_dict()}
 
 
-def analyze_prebuilt(model_id: str, file_bytes: bytes, filename: str) -> dict[str, Any]:
+async def analyze_prebuilt(model_id: str, file_bytes: bytes, filename: str) -> dict[str, Any]:
     """Run a DI prebuilt model (invoice, receipt, etc.). Returns result + API trace."""
     client = _get_client()
     trace = ApiTrace(service="DI", operation=model_id)
@@ -87,16 +97,24 @@ def analyze_prebuilt(model_id: str, file_bytes: bytes, filename: str) -> dict[st
 
     with TraceTimer() as timer:
         try:
-            poller = client.begin_analyze_document(
-                model_id=model_id,
-                body=_make_request(file_bytes),
-            )
-            result = poller.result()
+
+            def _run() -> Any:
+                poller = client.begin_analyze_document(
+                    model_id=model_id,
+                    body=_make_request(file_bytes),
+                )
+                return poller.result()
+
+            result = await asyncio.to_thread(_run)
             trace.response_status = 200
             result_dict = _result_to_dict(result)
             trace.response_body = _summarize_result(result_dict)
+        except HttpResponseError as e:
+            trace.error = f"HttpResponseError: {e}"
+            trace.response_status = e.status_code or 500
+            result_dict = {}
         except Exception as e:
-            trace.error = str(e)
+            trace.error = f"{type(e).__name__}: {e}"
             trace.response_status = 500
             result_dict = {}
 

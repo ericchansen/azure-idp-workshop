@@ -32,7 +32,7 @@ htmlcov/
 .ruff_cache/
 
 # Docker
-.dockerignore
+# (no exclusions — .dockerignore should be committed)
 
 # OS
 .DS_Store

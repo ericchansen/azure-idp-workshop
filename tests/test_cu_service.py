@@ -14,7 +14,7 @@ from workshop.services.content_understanding import (
 
 
 @patch("workshop.services.content_understanding._get_client")
-def test_analyze_layout_success(mock_get_client: MagicMock) -> None:
+async def test_analyze_layout_success(mock_get_client: MagicMock) -> None:
     """Successful CU layout analysis returns result + trace."""
     mock_result = MagicMock()
     mock_result.as_dict.return_value = {
@@ -24,7 +24,7 @@ def test_analyze_layout_success(mock_get_client: MagicMock) -> None:
     mock_poller.result.return_value = mock_result
     mock_get_client.return_value.begin_analyze_binary.return_value = mock_poller
 
-    result = analyze_layout(b"fake-bytes", "test.png")
+    result = await analyze_layout(b"fake-bytes", "test.png")
 
     assert "result" in result
     assert "trace" in result
@@ -33,13 +33,13 @@ def test_analyze_layout_success(mock_get_client: MagicMock) -> None:
 
 
 @patch("workshop.services.content_understanding._get_client")
-def test_analyze_layout_sdk_exception(mock_get_client: MagicMock) -> None:
+async def test_analyze_layout_sdk_exception(mock_get_client: MagicMock) -> None:
     """SDK exception is caught and wrapped in trace."""
     mock_get_client.return_value.begin_analyze_binary.side_effect = RuntimeError(
         "CU service exploded"
     )
 
-    result = analyze_layout(b"fake-bytes", "test.png")
+    result = await analyze_layout(b"fake-bytes", "test.png")
 
     assert result["result"] == {}
     assert "CU service exploded" in result["trace"]["error"]
@@ -47,7 +47,7 @@ def test_analyze_layout_sdk_exception(mock_get_client: MagicMock) -> None:
 
 
 @patch("workshop.services.content_understanding._get_client")
-def test_analyze_layout_content_empty_exception(mock_get_client: MagicMock) -> None:
+async def test_analyze_layout_content_empty_exception(mock_get_client: MagicMock) -> None:
     """ContentEmpty exception from CU SDK is caught gracefully."""
     mock_get_client.return_value.begin_analyze_binary.side_effect = Exception(
         "(InvalidRequest) Invalid request. Code: InvalidRequest. "
@@ -55,7 +55,7 @@ def test_analyze_layout_content_empty_exception(mock_get_client: MagicMock) -> N
         '"message": "No fields were extracted because the content is empty." }'
     )
 
-    result = analyze_layout(b"fake-bytes", "receipt.png")
+    result = await analyze_layout(b"fake-bytes", "receipt.png")
 
     assert result["result"] == {}
     assert "ContentEmpty" in result["trace"]["error"]
@@ -63,7 +63,7 @@ def test_analyze_layout_content_empty_exception(mock_get_client: MagicMock) -> N
 
 
 @patch("workshop.services.content_understanding._get_client")
-def test_analyze_prebuilt_success(mock_get_client: MagicMock) -> None:
+async def test_analyze_prebuilt_success(mock_get_client: MagicMock) -> None:
     """Successful prebuilt analysis returns fields."""
     mock_result = MagicMock()
     mock_result.as_dict.return_value = {
@@ -80,14 +80,14 @@ def test_analyze_prebuilt_success(mock_get_client: MagicMock) -> None:
     mock_poller.result.return_value = mock_result
     mock_get_client.return_value.begin_analyze_binary.return_value = mock_poller
 
-    result = analyze_prebuilt("prebuilt-invoice", b"bytes", "invoice.pdf")
+    result = await analyze_prebuilt("prebuilt-invoice", b"bytes", "invoice.pdf")
 
     assert result["trace"]["response"]["status"] == 200
     assert "result" in result
 
 
 @patch("workshop.services.content_understanding._get_client")
-def test_analyze_custom_success(mock_get_client: MagicMock) -> None:
+async def test_analyze_custom_success(mock_get_client: MagicMock) -> None:
     """Successful custom analysis with field definitions."""
     mock_client = mock_get_client.return_value
     # get_analyzer succeeds (analyzer exists)
@@ -112,13 +112,13 @@ def test_analyze_custom_success(mock_get_client: MagicMock) -> None:
         {"name": "summary", "type": "string", "description": "Summary"},
         {"name": "risk_level", "type": "string", "description": "Risk level"},
     ]
-    result = analyze_custom("workshopContract", b"bytes", "contract.txt", fields)
+    result = await analyze_custom("workshopContract", b"bytes", "contract.txt", fields)
 
     assert result["trace"]["response"]["status"] == 200
 
 
 @patch("workshop.services.content_understanding._get_client")
-def test_analyze_custom_creates_analyzer(mock_get_client: MagicMock) -> None:
+async def test_analyze_custom_creates_analyzer(mock_get_client: MagicMock) -> None:
     """Custom analysis creates analyzer if it doesn't exist."""
     mock_client = mock_get_client.return_value
     # get_analyzer fails (doesn't exist)
@@ -133,20 +133,20 @@ def test_analyze_custom_creates_analyzer(mock_get_client: MagicMock) -> None:
     mock_analyze_poller.result.return_value = mock_result
     mock_client.begin_analyze_binary.return_value = mock_analyze_poller
 
-    result = analyze_custom("new-analyzer", b"bytes", "doc.txt", None)
+    result = await analyze_custom("new-analyzer", b"bytes", "doc.txt", None)
 
     mock_client.begin_create_analyzer.assert_called_once()
     assert result["trace"]["response"]["status"] == 200
 
 
 @patch("workshop.services.content_understanding._get_client")
-def test_analyze_custom_exception(mock_get_client: MagicMock) -> None:
+async def test_analyze_custom_exception(mock_get_client: MagicMock) -> None:
     """Custom analysis exception is caught."""
     mock_client = mock_get_client.return_value
     mock_client.get_analyzer.return_value = MagicMock()
     mock_client.begin_analyze_binary.side_effect = Exception("Custom analyzer failed")
 
-    result = analyze_custom("workshopContract", b"bytes", "doc.txt", None)
+    result = await analyze_custom("workshopContract", b"bytes", "doc.txt", None)
 
     assert result["result"] == {}
     assert "Custom analyzer failed" in result["trace"]["error"]

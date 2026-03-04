@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, UploadFile
 from pydantic import BaseModel
 
-from workshop.routers.documents import read_sample
+from workshop.routers.documents import get_file_bytes, read_sample
 from workshop.services import content_understanding as cu_service
 
 router = APIRouter(prefix="/api/cu", tags=["content-understanding"])
@@ -28,8 +28,8 @@ class CustomAnalyzeRequest(BaseModel):
 @router.post("/layout")
 async def cu_layout(file: UploadFile | None = None, sample: str | None = None) -> dict[str, Any]:
     """Run CU Layout analysis on an uploaded or sample document."""
-    file_bytes, filename = await _get_file_bytes(file, sample)
-    return cu_service.analyze_layout(file_bytes, filename)
+    file_bytes, filename = await get_file_bytes(file, sample)
+    return await cu_service.analyze_layout(file_bytes, filename)
 
 
 @router.post("/prebuilt/{model_id}")
@@ -43,8 +43,8 @@ async def cu_prebuilt(
             status_code=400, detail=f"Analyzer '{model_id}' not supported. Use: {allowed}"
         )
 
-    file_bytes, filename = await _get_file_bytes(file, sample)
-    return cu_service.analyze_prebuilt(model_id, file_bytes, filename)
+    file_bytes, filename = await get_file_bytes(file, sample)
+    return await cu_service.analyze_prebuilt(model_id, file_bytes, filename)
 
 
 @router.post("/custom")
@@ -61,17 +61,4 @@ async def cu_custom(request: CustomAnalyzeRequest) -> dict[str, Any]:
         ) from None
 
     fields = [f.model_dump() for f in request.fields] if request.fields else None
-    return cu_service.analyze_custom(request.analyzer_id, file_bytes, request.sample, fields)
-
-
-async def _get_file_bytes(file: UploadFile | None, sample: str | None) -> tuple[bytes, str]:
-    """Extract file bytes from upload or sample name."""
-    if file:
-        content = await file.read()
-        return content, file.filename or "upload"
-    if sample:
-        try:
-            return read_sample(sample), sample
-        except FileNotFoundError:
-            raise HTTPException(status_code=404, detail=f"Sample '{sample}' not found") from None
-    raise HTTPException(status_code=400, detail="Provide 'file' upload or 'sample' name")
+    return await cu_service.analyze_custom(request.analyzer_id, file_bytes, request.sample, fields)
