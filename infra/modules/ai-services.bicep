@@ -26,7 +26,7 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
 // GPT-4.1 deployment (required for CU custom analyzers)
 resource gpt41 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
   parent: aiServices
-  name: 'gpt-41'
+  name: 'gpt-4.1'
   sku: {
     name: 'GlobalStandard'
     capacity: 10

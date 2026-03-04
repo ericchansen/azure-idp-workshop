@@ -134,6 +134,8 @@ module app 'modules/container-app.bicep' = if (!empty(containerImage)) {
       { name: 'STORAGE_ACCOUNT_URL', value: storage.outputs.blobEndpoint }
       { name: 'LOG_LEVEL', value: environmentName == 'prod' ? 'INFO' : 'DEBUG' }
       { name: 'AZURE_CLIENT_ID', value: identity.properties.clientId }
+      { name: 'CU_COMPLETION_DEPLOYMENT', value: 'gpt-4.1' }
+      { name: 'CU_EMBEDDING_DEPLOYMENT', value: 'text-embedding-3-large' }
     ]
   }
 }

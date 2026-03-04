@@ -148,9 +148,18 @@ def _ensure_defaults(client: Any) -> None:
             }
         )
         _defaults_configured = True
-        logger.info("CU defaults configured: gpt-4.1→%s", settings.cu_completion_deployment)
+        logger.info(
+            "CU defaults configured: gpt-4.1→%s, text-embedding-3-large→%s",
+            settings.cu_completion_deployment,
+            settings.cu_embedding_deployment,
+        )
     except Exception as e:
-        logger.warning("Failed to set CU defaults: %s", e)
+        logger.warning(
+            "Failed to set CU defaults (gpt-4.1→%s): %s — "
+            "CU custom analyzers may fail if deployment names don't match",
+            settings.cu_completion_deployment,
+            e,
+        )
 
 
 def _ensure_analyzer(client: Any, analyzer_id: str, fields: list[dict[str, str]] | None) -> bool:
@@ -158,9 +167,10 @@ def _ensure_analyzer(client: Any, analyzer_id: str, fields: list[dict[str, str]]
     _ensure_defaults(client)
     try:
         client.get_analyzer(analyzer_id)
+        logger.debug("Analyzer '%s' already exists", analyzer_id)
         return False
     except Exception:
-        # Analyzer doesn't exist, create it
+        logger.info("Analyzer '%s' not found — creating with completion model gpt-4.1", analyzer_id)
         analyzer_def: dict[str, Any] = {
             "description": f"Workshop custom analyzer: {analyzer_id}",
             "scenario": "document",
@@ -177,10 +187,19 @@ def _ensure_analyzer(client: Any, analyzer_id: str, fields: list[dict[str, str]]
                     for f in fields
                 }
             }
-        client.begin_create_analyzer(
-            analyzer_id=analyzer_id, resource=analyzer_def, allow_replace=True
-        ).result()
-        return True
+        try:
+            client.begin_create_analyzer(
+                analyzer_id=analyzer_id, resource=analyzer_def, allow_replace=True
+            ).result()
+            logger.info("Analyzer '%s' created successfully", analyzer_id)
+            return True
+        except Exception as e:
+            logger.error("Failed to create analyzer '%s': %s", analyzer_id, e)
+            raise RuntimeError(
+                f"CU analyzer creation failed for '{analyzer_id}': {e}. "
+                f"Check that GPT-4.1 deployment "
+                f"'{settings.cu_completion_deployment}' exists."
+            ) from e
 
 
 def _result_to_dict(result: Any) -> dict[str, Any]:
