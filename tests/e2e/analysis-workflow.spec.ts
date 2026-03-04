@@ -134,7 +134,7 @@ test.describe("Module 1 — Analysis Workflow", () => {
 
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     // Both result sections should appear
     await expect(
@@ -161,7 +161,7 @@ test.describe("Module 1 — Analysis Workflow", () => {
 
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Invoice" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     // API trace toggle should exist
     await expect(page.getByText("API Trace").first()).toBeVisible();
@@ -217,7 +217,7 @@ test.describe("Error Resilience — Server Errors", () => {
 
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     // Should show the actual error text, not "Unexpected token"
     await expect(page.getByText("Internal Server Error").first()).toBeVisible();
@@ -236,7 +236,7 @@ test.describe("Error Resilience — Server Errors", () => {
 
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Invoice" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     // Should show error, not crash
     await expect(page.getByText("Analysis Failed").first()).toBeVisible();
@@ -274,7 +274,7 @@ test.describe("Error Resilience — Mixed Results", () => {
 
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     // DI should render content
     await expect(
@@ -296,7 +296,7 @@ test.describe("Error Resilience — Mixed Results", () => {
 
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     // CU should render content
     await expect(

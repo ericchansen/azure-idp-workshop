@@ -5,9 +5,9 @@
 <div class="mb-8">
     <h1 class="text-3xl font-bold mb-2">Module 2: Semantic Extraction & Custom Fields</h1>
     <p class="text-gray-600 text-lg">
-        DI falls short on unstructured content — it extracts text but can't infer meaning.
-        CU's custom field inference uses GenAI to extract summaries, entities, sentiment, and risk from any document.
-        Define your own fields and watch CU understand documents, not just read them.
+        CU's custom field inference uses GenAI to extract summaries, entities, sentiment, and risk from any document —
+        define your own fields and watch CU understand documents, not just read them.
+        We also run DI side-by-side so you can see the difference: DI extracts text but can't infer meaning.
     </p>
 </div>
 
@@ -371,9 +371,10 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
                 <li><strong>Token usage</strong> — Check the API trace for GPT-4.1 token consumption — this is the cost driver.</li>
             </ul>
         </div>
+        <p class="mt-3 text-xs text-gray-500 italic">Both services run on the same document so you can compare. In production, CU alone handles this type of extraction.</p>
         <button @click="startAnalysis()" :disabled="!selectedSample || loading"
-            class="mt-4 px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-            <span x-show="!loading">🧠 Run CU Custom + DI Layout</span>
+            class="mt-3 px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+            <span x-show="!loading">▶️ Run Analysis — Compare DI vs CU</span>
             <span x-show="loading" class="flex items-center gap-2">
                 <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"/><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                 Processing...

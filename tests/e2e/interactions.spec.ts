@@ -155,7 +155,7 @@ test.describe("Module 1 — UI Interactions", () => {
   test("Formatted/Raw toggle switches DI result view", async ({ page, consoleErrors }) => {
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     // Wait for results
     await expect(page.getByText("Document Intelligence — Layout")).toBeVisible();
@@ -180,7 +180,7 @@ test.describe("Module 1 — UI Interactions", () => {
   test("API Trace details toggle expands and shows trace data", async ({ page, consoleErrors }) => {
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Invoice" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     await expect(page.getByText("Document Intelligence — Layout")).toBeVisible();
 
@@ -196,7 +196,7 @@ test.describe("Module 1 — UI Interactions", () => {
   test("timing and page count are displayed", async ({ page, consoleErrors }) => {
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     await expect(page.getByText("Document Intelligence — Layout")).toBeVisible();
 
@@ -210,7 +210,7 @@ test.describe("Module 1 — UI Interactions", () => {
   test("teaching point appears after both results", async ({ page, consoleErrors }) => {
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     await expect(page.getByText("Document Intelligence — Layout")).toBeVisible();
     await expect(page.getByText("Content Understanding — Layout")).toBeVisible();
@@ -223,7 +223,7 @@ test.describe("Module 1 — UI Interactions", () => {
   test("Formatted/Raw toggle switches CU result view", async ({ page, consoleErrors }) => {
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     await expect(page.getByText("Content Understanding — Layout")).toBeVisible();
 
@@ -247,7 +247,7 @@ test.describe("Module 1 — UI Interactions", () => {
   test("CU API Trace details toggle expands and shows trace data", async ({ page, consoleErrors }) => {
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Invoice" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     await expect(page.getByText("Content Understanding — Layout")).toBeVisible();
 
@@ -263,7 +263,7 @@ test.describe("Module 1 — UI Interactions", () => {
   test("DI table rendering shows table data", async ({ page, consoleErrors }) => {
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     await expect(page.getByText("Document Intelligence — Layout")).toBeVisible();
 
@@ -422,7 +422,7 @@ test.describe("Error State — API Trace Toggles", () => {
 
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     // DI error banner should appear
     await expect(page.getByText("DI Analysis Failed")).toBeVisible();
@@ -446,7 +446,7 @@ test.describe("Error State — API Trace Toggles", () => {
 
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     // CU error banner should appear
     await expect(page.getByText("CU Analysis Failed")).toBeVisible();

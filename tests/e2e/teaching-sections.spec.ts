@@ -210,7 +210,7 @@ test.describe("Module 1 — What to Look For & Comparison Guide", () => {
 
     // Run analysis
     await page.getByRole("button", { name: "Receipt" }).click();
-    await page.getByRole("button", { name: /Analyze with DI/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     // Wait for both results
     await expect(page.getByText("Document Intelligence — Layout")).toBeVisible();

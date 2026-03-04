@@ -32,3 +32,4 @@ Azure IDP Workshop — interactive demo comparing Azure Document Intelligence (D
   - guide.html: Decision tree wizard removed, replaced with "Choose DI if.../Choose CU if..." summary cards
   - E2E test heading assertions updated: `/Module 2.*Unstructured/` → `/Module 2.*Semantic/`
   - API endpoints unchanged: `/api/di/layout` + `/api/cu/custom` with `workshopContract` analyzer
+- **Module 2 button & framing update (2025-07-19)**: Changed button text from "🧠 Run CU Custom + DI Layout" to "▶️ Run Analysis — Compare DI vs CU" to make clear DI is a comparison baseline, not a required co-dependency. Added italic note: "Both services run on the same document so you can compare. In production, CU alone handles this type of extraction." Intro paragraph reframed to lead with CU as the star and position DI as a side-by-side comparison aid.
