@@ -67,6 +67,8 @@ FastAPI (Jinja2 + Alpine.js)
     └─► Azure Blob Storage (samples)
 ```
 
+For detailed technical architecture, deployment patterns, and design decisions, see [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+
 ## Repository Settings
 
 ### Branch Protection (Recommended)
