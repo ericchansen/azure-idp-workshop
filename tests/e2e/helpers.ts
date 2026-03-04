@@ -74,9 +74,15 @@ export async function assertNoErrorBanners(page: Page): Promise<void> {
  * Wait for analysis to complete (loading spinners gone, results visible).
  */
 export async function waitForAnalysisComplete(page: Page): Promise<void> {
-  // Wait for at least one result heading to appear
+  // Wait for at least one result heading to appear.
+  // Use " — " (em dash) to match result headings like "Document Intelligence — Layout"
+  // and NOT the hidden Architecture section headers like "Document Intelligence (DI)".
   await expect(
-    page.getByText(/Document Intelligence|Content Understanding/).first()
+    page
+      .getByText(
+        /Document Intelligence —|Content Understanding —|DI —|CU —|Analysis Unavailable/
+      )
+      .first()
   ).toBeVisible({ timeout: 120_000 });
 
   // Wait for ALL loading indicators to disappear (not just the first)
