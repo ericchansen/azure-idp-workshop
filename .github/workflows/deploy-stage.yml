@@ -148,7 +148,7 @@ jobs:
           echo "⚠️ Health check timed out (preview may still be starting)"
 
       - name: Comment PR with preview URL
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const url = '${{ steps.review.outputs.preview_url }}';
@@ -245,7 +245,7 @@ jobs:
           done
 
       - name: Update PR comment
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
             const merged = ${{ github.event.pull_request.merged }};
