@@ -343,34 +343,6 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
         <p class="text-sm text-gray-500 mt-3">
             DI will extract raw text layout. CU will infer meaning — key parties, obligations, sentiment, and risk.
         </p>
-    </div>
-
-    <!-- Custom field definitions display -->
-    <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 class="text-lg font-semibold mb-4">🧠 Custom Field Definitions</h2>
-        <p class="text-sm text-gray-600 mb-4">
-            These are the fields CU will attempt to extract using GenAI inference. DI can't do this — it only extracts raw text and layout.
-        </p>
-        <div class="space-y-2">
-            <template x-for="(field, idx) in fields" :key="idx">
-                <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-lg">
-                    <span class="font-mono text-sm font-medium text-purple-700 w-32" x-text="field.name"></span>
-                    <span class="text-sm text-gray-500 flex-1" x-text="field.description"></span>
-                    <span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full" x-text="field.type"></span>
-                </div>
-            </template>
-        </div>
-        <!-- What to look for -->
-        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
-            <h3 class="font-semibold text-amber-900 text-sm mb-2">🎯 What to Look For</h3>
-            <ul class="text-xs text-amber-800 space-y-1 list-disc list-inside">
-                <li><strong>Extraction depth</strong> — DI will give you raw text. CU will give you structured, inferred fields.</li>
-                <li><strong>Custom fields</strong> — These fields were defined by YOU, not pre-trained. CU uses GenAI to infer them.</li>
-                <li><strong>Field accuracy</strong> — Watch if CU correctly identifies parties, obligations, sentiment, and risk level.</li>
-                <li><strong>Processing time</strong> — CU takes longer because it runs GPT-4.1 inference.</li>
-                <li><strong>Token usage</strong> — Check the API trace for GPT-4.1 token consumption — this is the cost driver.</li>
-            </ul>
-        </div>
         <p class="mt-3 text-xs text-gray-500 italic">Both services run on the same document so you can compare. In production, CU alone handles this type of extraction.</p>
         <button @click="startAnalysis()" :disabled="!selectedSample || loading"
             class="mt-3 px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
@@ -402,6 +374,34 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
         <h2 class="text-lg font-semibold mb-3">👁️ Source Document — <span x-text="selectedSample"></span></h2>
         <div class="border rounded-lg overflow-hidden bg-gray-100" style="height: 300px;">
             <iframe :src="'/api/documents/samples/' + selectedSample + '/raw'" class="w-full h-full"></iframe>
+        </div>
+    </div>
+
+    <!-- Custom field definitions display -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">🧠 Custom Field Definitions</h2>
+        <p class="text-sm text-gray-600 mb-4">
+            These are the fields CU will attempt to extract using GenAI inference. DI can't do this — it only extracts raw text and layout.
+        </p>
+        <div class="space-y-2">
+            <template x-for="(field, idx) in fields" :key="idx">
+                <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-lg">
+                    <span class="font-mono text-sm font-medium text-purple-700 w-32" x-text="field.name"></span>
+                    <span class="text-sm text-gray-500 flex-1" x-text="field.description"></span>
+                    <span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full" x-text="field.type"></span>
+                </div>
+            </template>
+        </div>
+        <!-- What to look for -->
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
+            <h3 class="font-semibold text-amber-900 text-sm mb-2">🎯 What to Look For</h3>
+            <ul class="text-xs text-amber-800 space-y-1 list-disc list-inside">
+                <li><strong>Extraction depth</strong> — DI will give you raw text. CU will give you structured, inferred fields.</li>
+                <li><strong>Custom fields</strong> — These fields were defined by YOU, not pre-trained. CU uses GenAI to infer them.</li>
+                <li><strong>Field accuracy</strong> — Watch if CU correctly identifies parties, obligations, sentiment, and risk level.</li>
+                <li><strong>Processing time</strong> — CU takes longer because it runs GPT-4.1 inference.</li>
+                <li><strong>Token usage</strong> — Check the API trace for GPT-4.1 token consumption — this is the cost driver.</li>
+            </ul>
         </div>
     </div>
 
