@@ -7,7 +7,8 @@
 //   - Log Analytics workspace
 //   - ACR (shared)
 //   - Container Apps Environment + Container App (per environment)
-//   - User-Assigned Managed Identity + role assignments
+//   - User-Assigned Managed Identity
+//   Role assignments managed via CLI in deploy workflow (see deploy-prod.yml)
 
 targetScope = 'resourceGroup'
 
@@ -42,11 +43,6 @@ var envSuffix = environmentName == 'prod' ? '' : '-${environmentName}'
 var appEnvName = 'idp-cae${envSuffix}'
 var appName = 'idp-workshop${envSuffix}'
 var identityName = 'idp-id${envSuffix}'
-
-// Well-known role definition GUIDs
-var storageBlobDataContributorRole = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
-var cognitiveServicesUserRole = 'a97b65f3-24c7-4388-baec-2e87135dc908'
-var acrPullRole = '7f951dda-4ed3-4680-a7ca-43fe172d538d'
 
 // ── AI Services ─────────────────────────────────────────────────────────────
 
@@ -101,30 +97,10 @@ resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' 
 }
 
 // ── Role Assignments ────────────────────────────────────────────────────────
-
-module roleStorage 'modules/role-assignment.bicep' = {
-  name: 'role-storage-${environmentName}'
-  params: {
-    principalId: identity.properties.principalId
-    roleDefinitionId: storageBlobDataContributorRole
-  }
-}
-
-module roleCognitive 'modules/role-assignment.bicep' = {
-  name: 'role-cognitive-${environmentName}'
-  params: {
-    principalId: identity.properties.principalId
-    roleDefinitionId: cognitiveServicesUserRole
-  }
-}
-
-module roleAcrPull 'modules/role-assignment.bicep' = {
-  name: 'role-acr-pull-${environmentName}'
-  params: {
-    principalId: identity.properties.principalId
-    roleDefinitionId: acrPullRole
-  }
-}
+// Managed via `az role assignment create` in the deploy workflow for idempotency.
+// ARM's @2022-04-01 API rejects re-PUT of existing assignments, and pre-existing
+// assignments with different names (from earlier subscription-scoped deployments)
+// cause RoleAssignmentExists errors. The CLI handles both cases gracefully.
 
 // ── Container Apps ──────────────────────────────────────────────────────────
 
@@ -140,7 +116,6 @@ module appEnv 'modules/container-app-env.bicep' = {
 
 module app 'modules/container-app.bicep' = if (!empty(containerImage)) {
   name: 'app-${environmentName}'
-  dependsOn: [roleAcrPull]
   params: {
     name: appName
     location: location
@@ -166,5 +141,7 @@ module app 'modules/container-app.bicep' = if (!empty(containerImage)) {
 // ── Outputs ─────────────────────────────────────────────────────────────────
 
 output acrLoginServer string = acr.outputs.acrLoginServer
-output appUrl string = !empty(containerImage) ? app.outputs.appUrl! : ''
-output appFqdn string = !empty(containerImage) ? app.outputs.appFqdn! : ''
+output identityPrincipalId string = identity.properties.principalId
+output identityName string = identity.name
+output appUrl string = !empty(containerImage) ? app.outputs.appUrl : ''
+output appFqdn string = !empty(containerImage) ? app.outputs.appFqdn : ''
