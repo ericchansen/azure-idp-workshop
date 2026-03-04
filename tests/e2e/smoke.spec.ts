@@ -47,7 +47,7 @@ test.describe("Smoke: Module 1 — Structured Extraction", () => {
     await expect(page.getByText("Source Document")).toBeVisible();
 
     // Click analyze
-    await page.getByRole("button", { name: /Analyze/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     // Wait for real API results
     await waitForAnalysisComplete(page);
@@ -72,7 +72,7 @@ test.describe("Smoke: Module 1 — Structured Extraction", () => {
     await page.getByRole("button", { name: "Invoice" }).click();
     await expect(page.getByText("Source Document")).toBeVisible();
 
-    await page.getByRole("button", { name: /Analyze/i }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
     await waitForAnalysisComplete(page);
 
     await expect(page.getByText("Document Intelligence — Layout")).toBeVisible();
