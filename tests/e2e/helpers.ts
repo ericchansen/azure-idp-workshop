@@ -79,9 +79,7 @@ export async function waitForAnalysisComplete(page: Page): Promise<void> {
     page.getByText(/Document Intelligence|Content Understanding/).first()
   ).toBeVisible({ timeout: 120_000 });
 
-  // Wait for loading indicators to disappear
-  const spinners = page.locator(".animate-pulse");
-  if ((await spinners.count()) > 0) {
-    await expect(spinners.first()).not.toBeVisible({ timeout: 120_000 });
-  }
+  // Wait for ALL loading indicators to disappear (not just the first)
+  // This ensures both DI and CU have finished, even if one is slower
+  await expect(page.locator(".animate-pulse")).toHaveCount(0, { timeout: 120_000 });
 }
