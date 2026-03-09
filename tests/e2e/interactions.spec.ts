@@ -57,10 +57,12 @@ const mockCULayoutResult = {
 const mockDIPrebuiltResult = {
   result: {
     content: "Contoso invoice",
-    fields: {
-      VendorName: { value: "Contoso", confidence: 0.95 },
-      InvoiceTotal: { value: 2516.28, confidence: 0.92 },
-    },
+    documents: [{
+      fields: {
+        VendorName: { content: "Contoso", confidence: 0.95 },
+        InvoiceTotal: { content: "$2,516.28", valueCurrency: { amount: 2516.28 }, confidence: 0.92 },
+      },
+    }],
   },
   trace: {
     url: "https://test.cognitiveservices.azure.com/documentintelligence/documentModels/prebuilt-invoice:analyze",
@@ -149,6 +151,9 @@ test.describe("Module 1 — UI Interactions", () => {
     );
     await page.route("**/api/cu/layout*", (route) =>
       mockRoute(route, mockCULayoutResult)
+    );
+    await page.route("**/api/di/prebuilt/*", (route) =>
+      mockRoute(route, mockDIPrebuiltResult)
     );
   });
 
@@ -271,6 +276,24 @@ test.describe("Module 1 — UI Interactions", () => {
     await expect(page.getByText("Detected Tables")).toBeVisible();
     await expect(page.getByText("2 rows × 2 cols")).toBeVisible();
   });
+
+  test("prebuilt field extraction section shows extracted fields with confidence", async ({ page, consoleErrors }) => {
+    await page.goto("/module/1");
+    await page.getByRole("button", { name: "Receipt" }).click();
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
+
+    // Prebuilt section should appear with field extraction heading
+    await expect(page.getByText("Field Extraction").first()).toBeVisible();
+
+    // Extracted fields should be displayed (scoped to green field cards)
+    const prebuiltSection = page.locator(".border-green-200").first();
+    await expect(prebuiltSection.locator(".font-mono", { hasText: "VendorName" })).toBeVisible();
+    await expect(prebuiltSection.locator(".font-mono", { hasText: "InvoiceTotal" })).toBeVisible();
+
+    // Confidence badges should be present
+    await expect(prebuiltSection.getByText("95%")).toBeVisible();
+    await expect(prebuiltSection.getByText("92%")).toBeVisible();
+  });
 });
 
 // ============================================================
@@ -294,6 +317,34 @@ test.describe("Module 2 — UI Interactions", () => {
     await page.goto("/module/2");
     await expect(page.getByText("Source Document")).toBeVisible();
     await expect(page.locator("iframe")).toBeVisible();
+  });
+
+  test("interactive field editor shows default fields", async ({ page, consoleErrors }) => {
+    await page.goto("/module/2");
+    await expect(page.getByText("Custom Field Definitions")).toBeVisible();
+    // Check field names in the editor section (scoped to avoid matching teaching content)
+    const fieldEditor = page.locator("div", { hasText: "Custom Field Definitions" }).first();
+    await expect(fieldEditor.locator(".font-mono", { hasText: "summary" })).toBeVisible();
+    await expect(fieldEditor.locator(".font-mono", { hasText: "key_parties" })).toBeVisible();
+    await expect(fieldEditor.locator(".font-mono", { hasText: "obligations" })).toBeVisible();
+    await expect(fieldEditor.locator(".font-mono", { hasText: "risk_level" })).toBeVisible();
+    await expect(fieldEditor.locator(".font-mono", { hasText: "sentiment" })).toBeVisible();
+  });
+
+  test("add field button opens form and adds a field", async ({ page, consoleErrors }) => {
+    await page.goto("/module/2");
+
+    // Click "Add custom field"
+    await page.getByRole("button", { name: /Add custom field/i }).click();
+
+    // Fill in new field
+    await page.getByPlaceholder("e.g. effective_date").fill("contract_date");
+    await page.getByPlaceholder("What should CU extract?").fill("The date the contract takes effect");
+    await page.getByRole("button", { name: "Add Field", exact: true }).click();
+
+    // New field should appear in the list
+    await expect(page.getByText("contract_date")).toBeVisible();
+    await expect(page.getByText("The date the contract takes effect")).toBeVisible();
   });
 
   test("DI Formatted/Raw toggle switches result view", async ({ page, consoleErrors }) => {
@@ -419,6 +470,9 @@ test.describe("Error State — API Trace Toggles", () => {
     await page.route("**/api/cu/layout*", (route) =>
       mockRoute(route, mockCULayoutResult)
     );
+    await page.route("**/api/di/prebuilt/*", (route) =>
+      mockRoute(route, mockDIPrebuiltResult)
+    );
 
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
@@ -442,6 +496,9 @@ test.describe("Error State — API Trace Toggles", () => {
     );
     await page.route("**/api/cu/layout*", (route) =>
       mockRoute(route, mockCUContentEmptyError)
+    );
+    await page.route("**/api/di/prebuilt/*", (route) =>
+      mockRoute(route, mockDIPrebuiltResult)
     );
 
     await page.goto("/module/1");
