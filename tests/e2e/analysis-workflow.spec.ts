@@ -45,10 +45,12 @@ const mockCULayoutResult = {
 const mockDIPrebuiltResult = {
   result: {
     content: "Contoso invoice",
-    fields: {
-      VendorName: { value: "Contoso", confidence: 0.95 },
-      InvoiceTotal: { value: 2516.28, confidence: 0.92 },
-    },
+    documents: [{
+      fields: {
+        VendorName: { content: "Contoso", confidence: 0.95 },
+        InvoiceTotal: { content: "$2,516.28", valueCurrency: { amount: 2516.28 }, confidence: 0.92 },
+      },
+    }],
   },
   trace: {
     url: "https://test.cognitiveservices.azure.com/documentintelligence/documentModels/prebuilt-invoice:analyze",
@@ -131,6 +133,9 @@ test.describe("Module 1 — Analysis Workflow", () => {
     await page.route("**/api/cu/layout*", (route) =>
       mockRoute(route, mockCULayoutResult)
     );
+    await page.route("**/api/di/prebuilt/*", (route) =>
+      mockRoute(route, mockDIPrebuiltResult)
+    );
 
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
@@ -142,6 +147,11 @@ test.describe("Module 1 — Analysis Workflow", () => {
     ).toBeVisible();
     await expect(
       page.getByText("Content Understanding — Layout")
+    ).toBeVisible();
+
+    // Prebuilt field extraction section should appear
+    await expect(
+      page.getByText("Field Extraction").first()
     ).toBeVisible();
 
     // Results should contain extracted text (not error messages)
@@ -157,6 +167,9 @@ test.describe("Module 1 — Analysis Workflow", () => {
     );
     await page.route("**/api/cu/layout*", (route) =>
       mockRoute(route, mockCULayoutResult)
+    );
+    await page.route("**/api/di/prebuilt/*", (route) =>
+      mockRoute(route, mockDIPrebuiltResult)
     );
 
     await page.goto("/module/1");
@@ -214,6 +227,9 @@ test.describe("Error Resilience — Server Errors", () => {
     await page.route("**/api/cu/layout*", (route) =>
       mockErrorRoute(route, "Internal Server Error")
     );
+    await page.route("**/api/di/prebuilt/*", (route) =>
+      mockErrorRoute(route, "Internal Server Error")
+    );
 
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
@@ -231,6 +247,9 @@ test.describe("Error Resilience — Server Errors", () => {
       mockErrorRoute(route, htmlError, 502, "text/html")
     );
     await page.route("**/api/cu/layout*", (route) =>
+      mockErrorRoute(route, htmlError, 502, "text/html")
+    );
+    await page.route("**/api/di/prebuilt/*", (route) =>
       mockErrorRoute(route, htmlError, 502, "text/html")
     );
 
@@ -271,6 +290,9 @@ test.describe("Error Resilience — Mixed Results", () => {
     await page.route("**/api/cu/layout*", (route) =>
       mockErrorRoute(route, "CU service is down", 500)
     );
+    await page.route("**/api/di/prebuilt/*", (route) =>
+      mockRoute(route, mockDIPrebuiltResult)
+    );
 
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
@@ -293,6 +315,9 @@ test.describe("Error Resilience — Mixed Results", () => {
     await page.route("**/api/cu/layout*", (route) =>
       mockRoute(route, mockCULayoutResult)
     );
+    await page.route("**/api/di/prebuilt/*", (route) =>
+      mockErrorRoute(route, "DI service is down", 500)
+    );
 
     await page.goto("/module/1");
     await page.getByRole("button", { name: "Receipt" }).click();
@@ -303,6 +328,6 @@ test.describe("Error Resilience — Mixed Results", () => {
       page.getByText("Content Understanding — Layout")
     ).toBeVisible();
     // DI should show error
-    await expect(page.getByText("DI service is down")).toBeVisible();
+    await expect(page.getByText("DI service is down").first()).toBeVisible();
   });
 });

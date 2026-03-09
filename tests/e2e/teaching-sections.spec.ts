@@ -58,6 +58,24 @@ const mockCULayoutResult = {
   },
 };
 
+const mockDIPrebuiltResult = {
+  result: {
+    content: "Contoso receipt",
+    documents: [{
+      fields: {
+        MerchantName: { content: "Contoso", confidence: 0.95 },
+        Total: { content: "$2,516.28", confidence: 0.92 },
+      },
+    }],
+  },
+  trace: {
+    url: "https://test.cognitiveservices.azure.com/documentintelligence/documentModels/prebuilt-receipt:analyze",
+    method: "POST",
+    response_status: 200,
+    duration_ms: 1500,
+  },
+};
+
 const mockCUCustomResult = {
   result: {
     content: "Contract for professional services...",
@@ -200,6 +218,9 @@ test.describe("Module 1 — What to Look For & Comparison Guide", () => {
     );
     await page.route("**/api/cu/layout*", (route) =>
       mockRoute(route, mockCULayoutResult)
+    );
+    await page.route("**/api/di/prebuilt/*", (route) =>
+      mockRoute(route, mockDIPrebuiltResult)
     );
 
     await page.goto("/module/1");
