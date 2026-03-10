@@ -62,9 +62,10 @@ async def index_document(request: IndexRequest) -> dict[str, Any]:
     filename = request.sample
 
     # Run CU custom extraction to get enriched fields
+    # Build a stable, schema-sensitive analyzer ID from name, type, and description.
+    field_signatures = sorted(f"{f.name}:{f.type}:{f.description}" for f in request.fields)
     analyzer_id = (
-        "workshop_search_"
-        + hashlib.md5("|".join(f.name for f in request.fields).encode()).hexdigest()[:12]
+        "workshop_search_" + hashlib.md5("|".join(field_signatures).encode()).hexdigest()[:12]
     )
     cu_result = await cu_service.analyze_custom(
         analyzer_id,

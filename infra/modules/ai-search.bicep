@@ -25,7 +25,7 @@ resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' = {
     type: 'SystemAssigned'
   }
   properties: {
-    publicNetworkAccess: 'enabled'
+    publicNetworkAccess: 'Enabled'
     semanticSearch: 'standard'
     hostingMode: 'default'
     replicaCount: 1
