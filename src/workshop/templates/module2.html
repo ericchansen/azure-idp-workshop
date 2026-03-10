@@ -321,7 +321,7 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
         this.showAddField = false;
     },
     removeField(idx) { this.fields.splice(idx, 1); },
-    editingIdx: -1,
+    editingField: '',
     startAnalysis() {
         if (!this.selectedSample) return;
         this.loading = true; this.diResult = null; this.cuResult = null;
@@ -398,25 +398,26 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
             Define the fields CU should extract using GenAI inference. Add, remove, or edit fields — then run analysis to see the results. DI can't do this — it only extracts raw text and layout.
         </p>
         <div class="space-y-2">
-            <template x-for="(field, idx) in fields" :key="idx">
+            <template x-for="(field, idx) in fields" :key="field.name">
                 <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-lg group">
                     <span class="font-mono text-sm font-medium text-purple-700 w-32 shrink-0" x-text="field.name"></span>
                     <!-- Editable description (click to edit) -->
-                    <template x-if="editingIdx !== idx">
+                    <template x-if="editingField !== field.name">
                         <span class="text-sm text-gray-500 flex-1 cursor-pointer hover:text-gray-700 hover:bg-gray-100 rounded px-1 -mx-1"
-                              @click="editingIdx = idx"
+                              @click="editingField = field.name"
                               x-text="field.description || '(click to add description)'"
                               title="Click to edit"></span>
                     </template>
-                    <template x-if="editingIdx === idx">
+                    <template x-if="editingField === field.name">
                         <input type="text" x-model="field.description"
-                               @keydown.enter="editingIdx = -1" @keydown.escape="editingIdx = -1" @blur="editingIdx = -1"
+                               @keydown.enter="editingField = ''" @keydown.escape="editingField = ''" @blur="editingField = ''"
                                x-init="$nextTick(() => $el.focus())"
                                class="text-sm flex-1 border border-purple-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-400" />
                     </template>
                     <span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full shrink-0" x-text="field.type"></span>
-                    <button @click="removeField(idx)" :disabled="loading"
-                            class="text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                    <button @click="removeField(idx); editingField = ''" :disabled="loading"
+                            aria-label="Remove field"
+                            class="text-gray-400 hover:text-red-500 focus:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 shrink-0"
                             title="Remove field">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
@@ -461,7 +462,7 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
                             class="px-3 py-1.5 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed">
                         Add Field
                     </button>
-                    <button @click="showAddField = false; newFieldName = ''; newFieldDesc = '';"
+                    <button @click="showAddField = false; newFieldName = ''; newFieldDesc = ''; newFieldType = 'string';"
                             class="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300">
                         Cancel
                     </button>
