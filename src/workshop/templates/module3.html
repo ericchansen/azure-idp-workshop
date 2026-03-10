@@ -1,0 +1,450 @@
+{% extends "base.html" %}
+{% block title %}Module 3: Document Search with AI{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Module 3: Document Search with AI</h1>
+    <p class="text-gray-600 mt-1">Use CU to enrich documents, push to Azure AI Search, then query with semantic ranking.</p>
+</div>
+
+<!-- Architecture & Setup (collapsible) -->
+<details class="bg-white rounded-lg shadow border border-gray-200 mb-6">
+    <summary class="cursor-pointer p-5 font-semibold text-gray-800 hover:text-blue-600">
+        🏗️ Architecture & Setup
+    </summary>
+    <div class="px-5 pb-5 space-y-6">
+        <!-- Data flow -->
+        <div>
+            <h3 class="font-semibold text-gray-800 mb-3">📐 Data Flow</h3>
+            <div class="bg-gray-50 rounded-lg p-4 font-mono text-sm">
+                <div class="flex flex-wrap items-center gap-2 justify-center">
+                    <span class="bg-white border rounded px-3 py-1">📄 Document</span>
+                    <span class="text-gray-400">→</span>
+                    <span class="bg-purple-100 border border-purple-300 rounded px-3 py-1">🟣 CU Extraction</span>
+                    <span class="text-gray-400">→</span>
+                    <span class="bg-indigo-100 border border-indigo-300 rounded px-3 py-1">🔎 AI Search Index</span>
+                    <span class="text-gray-400">→</span>
+                    <span class="bg-green-100 border border-green-300 rounded px-3 py-1">✅ Semantic Query</span>
+                </div>
+                <div class="text-center text-xs text-gray-500 mt-3">
+                    CU enriches the document with summaries and key topics → pushed to AI Search → queryable with semantic ranking
+                </div>
+            </div>
+        </div>
+
+        <!-- Push vs Pull -->
+        <div>
+            <h3 class="font-semibold text-gray-800 mb-3">📥 Push vs Pull Indexing</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                    <div class="font-medium text-indigo-800 mb-2">⬆️ Push Model (This Demo)</div>
+                    <ul class="text-sm text-gray-700 space-y-1 list-disc list-inside">
+                        <li>Your app sends documents to the index via the SDK</li>
+                        <li>Full control over enrichment pipeline</li>
+                        <li>CU/DI pre-processes before indexing</li>
+                        <li>Best for: custom enrichment, event-driven ingestion</li>
+                    </ul>
+                </div>
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div class="font-medium text-gray-800 mb-2">⬇️ Pull Model (Indexers)</div>
+                    <ul class="text-sm text-gray-700 space-y-1 list-disc list-inside">
+                        <li>AI Search crawls a data source (Blob, SQL, Cosmos DB)</li>
+                        <li>Built-in skillsets for enrichment</li>
+                        <li>Scheduled or on-demand</li>
+                        <li>Best for: bulk ingestion, blob storage pipelines</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- What are we building -->
+        <div>
+            <h3 class="font-semibold text-gray-800 mb-3">🎯 What We're Building</h3>
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
+                <p><strong>A CU-powered document knowledge base.</strong> This module shows the complete pipeline:</p>
+                <ol class="list-decimal list-inside space-y-1 mt-2">
+                    <li>Select a document from the sample library</li>
+                    <li>CU extracts a summary and key topics (GenAI enrichment)</li>
+                    <li>The enriched document is pushed to Azure AI Search</li>
+                    <li>You can then search across indexed documents with semantic ranking</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Try It Yourself -->
+        <div>
+            <h3 class="font-semibold text-gray-800 mb-3">🧑‍💻 Try It Yourself</h3>
+            <div class="border rounded-lg overflow-hidden">
+                <div class="flex bg-gray-100 border-b" x-data="{tab: 'python'}">
+                    <button @click="tab='python'" :class="tab==='python' ? 'bg-white font-medium border-b-2 border-blue-500' : ''"
+                        class="px-4 py-2 text-sm">Python SDK</button>
+                    <button @click="tab='curl'" :class="tab==='curl' ? 'bg-white font-medium border-b-2 border-blue-500' : ''"
+                        class="px-4 py-2 text-sm">cURL</button>
+                </div>
+                <div x-data="{tab: 'python'}">
+                    <div x-show="tab==='python'" class="p-4">
+                        <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-python">from azure.search.documents import SearchClient
+from azure.search.documents.indexes import SearchIndexClient
+from azure.identity import DefaultAzureCredential
+
+credential = DefaultAzureCredential()
+
+# Create index
+index_client = SearchIndexClient(endpoint, credential)
+index_client.create_or_update_index(index)
+
+# Push document
+search_client = SearchClient(endpoint, "documents", credential)
+search_client.upload_documents([{
+    "id": "doc-1",
+    "title": "Contract.pdf",
+    "content": "Full document text...",
+    "summary": "Professional services agreement...",
+}])
+
+# Search
+results = search_client.search(
+    search_text="service agreement",
+    query_type="semantic",
+    semantic_configuration_name="default",
+)
+for r in results:
+    print(f"{r['title']}: {r['@search.score']}")</code></pre>
+                    </div>
+                    <div x-show="tab==='curl'" class="p-4">
+                        <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-bash"># Index a document
+curl -X POST "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/index?api-version=2024-07-01" \
+  -H "api-key: &lt;key&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{"value": [{"@search.action": "upload", "id": "doc-1", "title": "Contract.pdf", "content": "..."}]}'
+
+# Search
+curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/search?api-version=2024-07-01" \
+  -H "api-key: &lt;key&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{"search": "service agreement", "queryType": "semantic", "semanticConfiguration": "default"}'</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- IaC -->
+        <div>
+            <h3 class="font-semibold text-gray-800 mb-3">🏗 Infrastructure as Code</h3>
+            <div class="border rounded-lg overflow-hidden" x-data="{iac: 'bicep'}">
+                <div class="flex bg-gray-100 border-b">
+                    <button @click="iac='bicep'" :class="iac==='bicep' ? 'bg-white font-medium border-b-2 border-blue-500' : ''" class="px-4 py-2 text-sm">Bicep</button>
+                    <button @click="iac='terraform'" :class="iac==='terraform' ? 'bg-white font-medium border-b-2 border-blue-500' : ''" class="px-4 py-2 text-sm">Terraform</button>
+                    <button @click="iac='cli'" :class="iac==='cli' ? 'bg-white font-medium border-b-2 border-blue-500' : ''" class="px-4 py-2 text-sm">Azure CLI</button>
+                </div>
+                <div x-show="iac==='bicep'" class="p-4">
+                    <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-python">resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' = {
+  name: 'my-search-service'
+  location: resourceGroup().location
+  sku: { name: 'basic' }
+  properties: {
+    publicNetworkAccess: 'Enabled'
+    semanticSearch: 'standard'
+  }
+}</code></pre>
+                </div>
+                <div x-show="iac==='terraform'" class="p-4">
+                    <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-python">resource "azurerm_search_service" "search" {
+  name                = "my-search-service"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  sku                 = "basic"
+  semantic_search_sku = "standard"
+}</code></pre>
+                </div>
+                <div x-show="iac==='cli'" class="p-4">
+                    <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-bash">az search service create \
+  --name my-search-service \
+  --resource-group rg-idp-workshop \
+  --sku basic \
+  --semantic-search standard</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</details>
+
+<!-- Interactive Demo -->
+<div x-data="{
+    indexing: false, searching: false,
+    selectedSample: '', indexResult: null, searchResult: null,
+    searchQuery: '', statsResult: null,
+    indexDone: false, startTime: null, elapsed: '0.0', timer: null,
+    hasError(r) { return r?.error || r?.trace?.error || r?.trace?.cu?.error || r?.trace?.search?.error },
+    getError(r) {
+        if (r?.error) return r.error;
+        if (r?.trace?.error) return r.trace.error;
+        if (r?.trace?.cu?.error) return r.trace.cu.error;
+        if (r?.trace?.search?.error) return r.trace.search.error;
+        return 'Unknown error';
+    },
+    async ensureAndIndex() {
+        if (!this.selectedSample) return;
+        this.indexing = true; this.indexResult = null;
+        this.startTime = Date.now();
+        this.timer = setInterval(() => { this.elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1); }, 100);
+
+        try {
+            // Ensure index exists
+            await fetch('/api/search/ensure-index', { method: 'POST' });
+
+            // Index the document (CU enrichment + push)
+            const resp = await fetch('/api/search/index', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sample: this.selectedSample })
+            });
+            if (!resp.ok) { const t = await resp.text(); throw new Error(t || 'HTTP ' + resp.status); }
+            this.indexResult = await resp.json();
+        } catch (e) {
+            this.indexResult = { error: e.message };
+        }
+        this.indexing = false; clearInterval(this.timer);
+        this.refreshStats();
+    },
+    async doSearch() {
+        if (!this.searchQuery.trim()) return;
+        this.searching = true; this.searchResult = null;
+        try {
+            const resp = await fetch('/api/search/query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: this.searchQuery, top: 5, use_semantic: true })
+            });
+            if (!resp.ok) { const t = await resp.text(); throw new Error(t || 'HTTP ' + resp.status); }
+            this.searchResult = await resp.json();
+        } catch (e) {
+            this.searchResult = { error: e.message };
+        }
+        this.searching = false;
+    },
+    async refreshStats() {
+        try {
+            const resp = await fetch('/api/search/stats');
+            if (resp.ok) this.statsResult = await resp.json();
+        } catch (e) { /* ignore */ }
+    }
+}" x-init="refreshStats()" x-cloak>
+
+    <!-- Step 1: Index a document -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-2">📥 Step 1: Index a Document</h2>
+        <p class="text-sm text-gray-600 mb-4">
+            Select a document. CU will extract a summary and key topics, then push the enriched document to Azure AI Search.
+        </p>
+        <div class="flex flex-wrap gap-3 mb-4">
+            <button @click="selectedSample = 'contract.pdf'"
+                :class="selectedSample === 'contract.pdf' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-gray-100 hover:bg-gray-200'"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                📜 Contract (PDF)
+            </button>
+            <button @click="selectedSample = 'invoice.pdf'"
+                :class="selectedSample === 'invoice.pdf' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-gray-100 hover:bg-gray-200'"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                📄 Invoice (PDF)
+            </button>
+            <button @click="selectedSample = 'receipt.png'"
+                :class="selectedSample === 'receipt.png' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-gray-100 hover:bg-gray-200'"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                🧾 Receipt (PNG)
+            </button>
+        </div>
+
+        <!-- Index stats badge -->
+        <div x-show="statsResult?.result" class="mb-4">
+            <span class="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-700">
+                📊 Index: <span x-text="statsResult?.result?.document_count ?? 0"></span> document(s)
+            </span>
+        </div>
+
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+            <h3 class="font-semibold text-amber-900 text-sm mb-2">🎯 What to Look For</h3>
+            <ul class="text-xs text-amber-800 space-y-1 list-disc list-inside">
+                <li><strong>CU enrichment</strong> — CU extracts a summary and key topics before indexing. This is the "1+1=3" story.</li>
+                <li><strong>Two API calls</strong> — First CU analyzes, then AI Search indexes. Check both traces.</li>
+                <li><strong>Processing time</strong> — CU inference dominates; the search indexing is near-instant.</li>
+            </ul>
+        </div>
+
+        <button @click="ensureAndIndex()" :disabled="!selectedSample || indexing"
+            class="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+            <span x-show="!indexing">📥 Enrich & Index Document</span>
+            <span x-show="indexing" class="flex items-center gap-2">
+                <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"/><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                Enriching & Indexing... <span x-text="elapsed + 's'"></span>
+            </span>
+        </button>
+    </div>
+
+    <!-- Indexing result -->
+    <div x-show="indexResult" x-transition class="bg-white rounded-lg shadow p-6 mb-6">
+        <template x-if="indexResult && !hasError(indexResult)">
+            <div>
+                <h3 class="text-lg font-semibold text-green-700 mb-3">✅ Document Indexed</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <!-- CU extraction -->
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <h4 class="font-medium text-purple-800 mb-2">🟣 CU Enrichment</h4>
+                        <template x-for="(value, key) in indexResult.result?.cu_extraction?.fields || {}" :key="key">
+                            <div class="mb-2">
+                                <span class="font-mono text-xs font-medium text-purple-700" x-text="key"></span>
+                                <div class="text-sm text-gray-700 mt-0.5" x-text="value || '(not extracted)'"></div>
+                            </div>
+                        </template>
+                    </div>
+                    <!-- Index result -->
+                    <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                        <h4 class="font-medium text-indigo-800 mb-2">🔎 Search Index</h4>
+                        <div class="text-sm text-gray-700 space-y-1">
+                            <div>📋 Document ID: <span class="font-mono text-xs" x-text="indexResult.result?.document_id"></span></div>
+                            <div>✅ Indexed: <span x-text="indexResult.result?.indexing?.indexed || 0"></span> / <span x-text="indexResult.result?.indexing?.total || 0"></span></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- API traces -->
+                <details>
+                    <summary class="cursor-pointer text-sm font-medium text-indigo-600 hover:text-indigo-800">📡 View API Traces</summary>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                        <div>
+                            <div class="text-xs font-medium text-purple-700 mb-1">CU Trace</div>
+                            <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-60"><code x-text="JSON.stringify(indexResult.trace?.cu, null, 2)"></code></pre>
+                        </div>
+                        <div>
+                            <div class="text-xs font-medium text-indigo-700 mb-1">Search Trace</div>
+                            <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-60"><code x-text="JSON.stringify(indexResult.trace?.search, null, 2)"></code></pre>
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </template>
+        <template x-if="indexResult && hasError(indexResult)">
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="font-medium text-red-800">❌ Indexing Failed</div>
+                <div class="text-sm text-red-600 mt-1 font-mono break-all" x-text="getError(indexResult)"></div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Step 2: Search -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-2">🔍 Step 2: Search Your Knowledge Base</h2>
+        <p class="text-sm text-gray-600 mb-4">
+            Query the index with natural language. AI Search uses semantic ranking to find the most relevant documents.
+        </p>
+        <div class="flex gap-3">
+            <input type="text" x-model="searchQuery" placeholder="e.g. service agreement obligations"
+                   @keydown.enter="doSearch()"
+                   class="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+            <button @click="doSearch()" :disabled="!searchQuery.trim() || searching"
+                class="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                <span x-show="!searching">🔍 Search</span>
+                <span x-show="searching" class="flex items-center gap-2">
+                    <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"/><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                    Searching...
+                </span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Search results -->
+    <div x-show="searchResult" x-transition class="bg-white rounded-lg shadow p-6 mb-6">
+        <template x-if="searchResult && !hasError(searchResult)">
+            <div>
+                <h3 class="text-lg font-semibold text-indigo-700 mb-3">
+                    🔎 Results — <span x-text="searchResult.result?.total || 0"></span> hit(s)
+                </h3>
+                <template x-if="searchResult.result?.hits?.length === 0">
+                    <p class="text-sm text-gray-500 italic">No results found. Try indexing some documents first, then search for concepts in them.</p>
+                </template>
+                <div class="space-y-3">
+                    <template x-for="hit in searchResult.result?.hits || []" :key="hit.id">
+                        <div class="border border-gray-200 rounded-lg p-4 hover:border-indigo-300 transition-all">
+                            <div class="flex items-start justify-between">
+                                <div class="font-medium text-gray-900" x-text="hit.title"></div>
+                                <div class="flex gap-2 shrink-0">
+                                    <span x-show="hit.score" class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full"
+                                          x-text="'Score: ' + hit.score?.toFixed(2)"></span>
+                                    <span x-show="hit.reranker_score" class="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full"
+                                          x-text="'Semantic: ' + hit.reranker_score?.toFixed(2)"></span>
+                                </div>
+                            </div>
+                            <div x-show="hit.summary" class="text-sm text-gray-600 mt-1" x-text="hit.summary"></div>
+                            <div x-show="hit.content_preview" class="text-xs text-gray-400 mt-2 line-clamp-2" x-text="hit.content_preview"></div>
+                        </div>
+                    </template>
+                </div>
+                <details class="mt-4">
+                    <summary class="cursor-pointer text-sm font-medium text-indigo-600 hover:text-indigo-800">📡 View API Trace</summary>
+                    <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-60"><code x-text="JSON.stringify(searchResult.trace, null, 2)"></code></pre>
+                </details>
+            </div>
+        </template>
+        <template x-if="searchResult && hasError(searchResult)">
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div class="font-medium text-red-800">❌ Search Failed</div>
+                <div class="text-sm text-red-600 mt-1 font-mono break-all" x-text="getError(searchResult)"></div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Teaching point -->
+    <div x-show="indexResult && !hasError(indexResult)" class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-5">
+        <h3 class="font-semibold text-yellow-900 mb-2">💡 What to Notice — CU Makes Search Smarter</h3>
+        <ul class="text-sm text-yellow-800 space-y-1 list-disc list-inside">
+            <li><strong>CU enrichment is the secret sauce.</strong> Without it, you're searching raw text. With it, you're searching structured intelligence.</li>
+            <li><strong>Semantic ranking</strong> uses deep learning to understand query intent — "service obligations" matches even if the exact words aren't in the document.</li>
+            <li><strong>Two-step pipeline:</strong> CU extraction (slow, GenAI) → Search indexing (fast, instant). In production, you'd run CU once and query many times.</li>
+            <li><strong>Push model</strong> gives you full control. You decide what to enrich, when to index, and what metadata to attach.</li>
+        </ul>
+    </div>
+
+    <!-- Behind the Scenes -->
+    <details class="mt-6 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <summary class="cursor-pointer p-5 font-semibold text-indigo-900 hover:text-indigo-700">
+            📚 Behind the Scenes — How This Works
+        </summary>
+        <div class="px-5 pb-5 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-semibold text-indigo-800 mb-2">☁️ Azure Resources Required</h4>
+                    <ul class="text-sm space-y-1 list-disc list-inside text-gray-700">
+                        <li><strong>Azure AI Search</strong> (Basic SKU) — semantic ranking enabled</li>
+                        <li><strong>Azure AI Services</strong> — CU for document enrichment</li>
+                        <li><strong>GPT-4.1 deployment</strong> — CU uses this for field extraction</li>
+                        <li>Managed Identity for auth (no API keys)</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-indigo-800 mb-2">🔐 Security Patterns</h4>
+                    <ul class="text-sm space-y-1 list-disc list-inside text-gray-700">
+                        <li><strong>Managed Identity</strong> — no keys in code or config</li>
+                        <li><strong>RBAC roles:</strong> Search Index Data Contributor + Search Service Contributor</li>
+                        <li><strong>Network isolation:</strong> Private endpoints + VNet integration in production</li>
+                        <li>Data encryption at rest (service-managed keys)</li>
+                    </ul>
+                </div>
+            </div>
+            <div>
+                <h4 class="font-semibold text-indigo-800 mb-2">💰 Pricing</h4>
+                <div class="overflow-auto">
+                    <table class="rendered-md text-sm">
+                        <thead><tr><th>Resource</th><th>Tier</th><th>Cost</th><th>Notes</th></tr></thead>
+                        <tbody>
+                            <tr><td>AI Search</td><td>Basic</td><td>~$75/mo</td><td>Semantic search included; 1 replica, 1 partition</td></tr>
+                            <tr><td>CU extraction</td><td>S0</td><td>~$0.05/page</td><td>GPT-4.1 token usage on top</td></tr>
+                            <tr><td>Search queries</td><td>-</td><td>Free</td><td>Included in Basic tier</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </details>
+
+</div>
+
+{% endblock %}

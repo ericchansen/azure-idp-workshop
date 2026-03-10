@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     cu_completion_deployment: str = "gpt-4.1"
     cu_embedding_deployment: str = "text-embedding-3-large"
 
+    # Azure AI Search
+    ais_endpoint: str = ""
+    ais_key: str = ""  # Optional — uses DefaultAzureCredential if empty
+    ais_index_name: str = "workshop-documents"
+
     # Runtime
     environment: str = "dev"
     log_level: str = "INFO"

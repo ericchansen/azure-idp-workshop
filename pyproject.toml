@@ -24,6 +24,7 @@ dependencies = [
     # Templates
     "jinja2",
     "starlette>=0.45,<1",
+    "azure-search-documents>=11.7.0b2",
 ]
 
 [build-system]

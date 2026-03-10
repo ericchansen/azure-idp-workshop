@@ -35,6 +35,9 @@ param storageAccountName string = 'idpworkshopstorage'
 @description('Log Analytics workspace name')
 param logAnalyticsWorkspaceName string = 'idp-workshop-logs'
 
+@description('AI Search service name (globally unique)')
+param aiSearchName string = 'idp-workshop-search'
+
 param tags object = {}
 
 // ── Computed Names ──────────────────────────────────────────────────────────
@@ -88,6 +91,18 @@ module acr 'modules/acr.bicep' = {
   }
 }
 
+// ── AI Search ───────────────────────────────────────────────────────────────
+
+module aiSearch 'modules/ai-search.bicep' = {
+  name: 'ai-search'
+  params: {
+    name: aiSearchName
+    location: location
+    sku: 'basic'
+    tags: tags
+  }
+}
+
 // ── Per-Environment: Managed Identity ───────────────────────────────────────
 
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
@@ -136,6 +151,8 @@ module app 'modules/container-app.bicep' = if (!empty(containerImage)) {
       { name: 'AZURE_CLIENT_ID', value: identity.properties.clientId }
       { name: 'CU_COMPLETION_DEPLOYMENT', value: 'gpt-4.1' }
       { name: 'CU_EMBEDDING_DEPLOYMENT', value: 'text-embedding-3-large' }
+      { name: 'AIS_ENDPOINT', value: aiSearch.outputs.endpoint }
+      { name: 'AIS_INDEX_NAME', value: 'workshop-documents' }
     ]
   }
 }
