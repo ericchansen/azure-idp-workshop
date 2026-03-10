@@ -203,7 +203,7 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
             if (!resp.ok) { const t = await resp.text(); throw new Error(t || 'HTTP ' + resp.status); }
             this.indexResult = await resp.json();
         } catch (e) {
-            this.indexResult = { error: e.message };
+            this.indexResult = { error: e instanceof Error ? e.message : String(e) };
         }
         this.indexing = false; clearInterval(this.timer);
         this.refreshStats();
@@ -220,7 +220,7 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
             if (!resp.ok) { const t = await resp.text(); throw new Error(t || 'HTTP ' + resp.status); }
             this.searchResult = await resp.json();
         } catch (e) {
-            this.searchResult = { error: e.message };
+            this.searchResult = { error: e instanceof Error ? e.message : String(e) };
         }
         this.searching = false;
     },

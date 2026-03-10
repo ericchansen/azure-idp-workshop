@@ -192,7 +192,8 @@ async def search_documents(query: str, top: int = 5, use_semantic: bool = True) 
                         "content_preview": (r.get("content") or "")[:300],
                     }
                 )
-            total = results.get_count() if results.get_count() is not None else len(hits)
+            count = results.get_count()
+            total = count if count is not None else len(hits)
             trace.response_status = 200
             result_dict = {"hits": hits, "total": total, "query": query}
         except HttpResponseError as e:
