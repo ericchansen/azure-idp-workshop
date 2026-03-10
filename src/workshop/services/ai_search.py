@@ -6,6 +6,8 @@ import asyncio
 import logging
 from typing import Any
 
+from azure.core.exceptions import HttpResponseError
+
 from workshop.config import settings
 from workshop.services.api_trace import ApiTrace, TraceTimer, sanitize_headers
 
@@ -73,6 +75,7 @@ async def ensure_index() -> dict[str, Any]:
                 SearchableField(name="title", type=SearchFieldDataType.String),
                 SearchableField(name="content", type=SearchFieldDataType.String),
                 SearchableField(name="summary", type=SearchFieldDataType.String),
+                SearchableField(name="key_topics", type=SearchFieldDataType.String),
                 SimpleField(name="source_doc", type=SearchFieldDataType.String, filterable=True),
                 SimpleField(
                     name="indexed_at",
@@ -87,7 +90,10 @@ async def ensure_index() -> dict[str, Any]:
                 prioritized_fields=SemanticPrioritizedFields(
                     content_fields=[SemanticField(field_name="content")],
                     title_field=SemanticField(field_name="title"),
-                    keywords_fields=[SemanticField(field_name="summary")],
+                    keywords_fields=[
+                        SemanticField(field_name="summary"),
+                        SemanticField(field_name="key_topics"),
+                    ],
                 ),
             )
 
@@ -101,6 +107,10 @@ async def ensure_index() -> dict[str, Any]:
             result = await asyncio.to_thread(client.create_or_update_index, index)
             trace.response_status = 200
             result_dict = {"name": result.name, "fields": len(result.fields)}
+        except HttpResponseError as e:
+            trace.error = f"HttpResponseError: {e}"
+            trace.response_status = e.status_code or 500
+            result_dict = {}
         except Exception as e:
             trace.error = f"{type(e).__name__}: {e}"
             trace.response_status = 500
@@ -125,6 +135,10 @@ async def index_document(doc: dict[str, Any]) -> dict[str, Any]:
             succeeded = sum(1 for r in result if r.succeeded)
             trace.response_status = 200
             result_dict = {"indexed": succeeded, "total": len(result)}
+        except HttpResponseError as e:
+            trace.error = f"HttpResponseError: {e}"
+            trace.response_status = e.status_code or 500
+            result_dict = {}
         except Exception as e:
             trace.error = f"{type(e).__name__}: {e}"
             trace.response_status = 500
@@ -171,6 +185,7 @@ async def search_documents(query: str, top: int = 5, use_semantic: bool = True) 
                         "id": r.get("id"),
                         "title": r.get("title", ""),
                         "summary": r.get("summary", ""),
+                        "key_topics": r.get("key_topics", ""),
                         "source_doc": r.get("source_doc", ""),
                         "score": r.get("@search.score"),
                         "reranker_score": r.get("@search.reranker_score"),
@@ -180,6 +195,10 @@ async def search_documents(query: str, top: int = 5, use_semantic: bool = True) 
             total = results.get_count() if results.get_count() is not None else len(hits)
             trace.response_status = 200
             result_dict = {"hits": hits, "total": total, "query": query}
+        except HttpResponseError as e:
+            trace.error = f"HttpResponseError: {e}"
+            trace.response_status = e.status_code or 500
+            result_dict = {"hits": [], "total": 0, "query": query}
         except Exception as e:
             trace.error = f"{type(e).__name__}: {e}"
             trace.response_status = 500
@@ -204,6 +223,10 @@ async def get_index_stats() -> dict[str, Any]:
                 "document_count": stats.document_count,
                 "storage_size": stats.storage_size,
             }
+        except HttpResponseError as e:
+            trace.error = f"HttpResponseError: {e}"
+            trace.response_status = e.status_code or 500
+            result_dict = {"document_count": 0, "storage_size": 0}
         except Exception as e:
             trace.error = f"{type(e).__name__}: {e}"
             trace.response_status = 500
