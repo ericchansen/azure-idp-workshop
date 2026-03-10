@@ -55,7 +55,10 @@ async def ensure_index() -> dict[str, Any]:
 @router.post("/index")
 async def index_document(request: IndexRequest) -> dict[str, Any]:
     """Analyze a document with CU, then push enriched data to AI Search."""
-    file_bytes = read_sample(request.sample)
+    try:
+        file_bytes = read_sample(request.sample)
+    except FileNotFoundError as err:
+        raise HTTPException(status_code=404, detail=f"Sample not found: {request.sample}") from err
     filename = request.sample
 
     # Run CU custom extraction to get enriched fields
