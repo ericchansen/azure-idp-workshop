@@ -332,10 +332,11 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
             .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t || 'HTTP ' + r.status) }); return r.json(); })
             .then(d => { this.diResult = d; this.diDone = true; this.checkDone(); })
             .catch(e => { this.diResult = { error: e.message }; this.diDone = true; this.checkDone(); });
+        const analyzerId = 'workshop_' + this.fields.map(f => f.name).sort().join('_').substring(0, 60);
         fetch('/api/cu/custom', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sample: this.selectedSample, fields: this.fields, analyzer_id: 'workshopContract' })
+            body: JSON.stringify({ sample: this.selectedSample, fields: this.fields, analyzer_id: analyzerId })
         })
         .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t || 'HTTP ' + r.status) }); return r.json(); })
         .then(d => { this.cuResult = d; this.cuDone = true; this.checkDone(); })
