@@ -11,6 +11,7 @@ from workshop.services.api_trace import ApiTrace, TraceTimer, sanitize_headers
 
 logger = logging.getLogger(__name__)
 
+
 def _get_credential() -> Any:
     """Return AzureKeyCredential if key set, else DefaultAzureCredential."""
     if settings.ais_key:
