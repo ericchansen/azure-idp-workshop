@@ -74,14 +74,14 @@
         <!-- Try It Yourself -->
         <div>
             <h3 class="font-semibold text-gray-800 mb-3">🧑‍💻 Try It Yourself</h3>
-            <div class="border rounded-lg overflow-hidden">
-                <div class="flex bg-gray-100 border-b" x-data="{tab: 'python'}">
+            <div class="border rounded-lg overflow-hidden" x-data="{tab: 'python'}">
+                <div class="flex bg-gray-100 border-b">
                     <button @click="tab='python'" :class="tab==='python' ? 'bg-white font-medium border-b-2 border-blue-500' : ''"
                         class="px-4 py-2 text-sm">Python SDK</button>
                     <button @click="tab='curl'" :class="tab==='curl' ? 'bg-white font-medium border-b-2 border-blue-500' : ''"
                         class="px-4 py-2 text-sm">cURL</button>
                 </div>
-                <div x-data="{tab: 'python'}">
+                <div>
                     <div x-show="tab==='python'" class="p-4">
                         <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-python">from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
@@ -138,7 +138,7 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
                     <button @click="iac='cli'" :class="iac==='cli' ? 'bg-white font-medium border-b-2 border-blue-500' : ''" class="px-4 py-2 text-sm">Azure CLI</button>
                 </div>
                 <div x-show="iac==='bicep'" class="p-4">
-                    <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-python">resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' = {
+                    <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-bicep">resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   name: 'my-search-service'
   location: resourceGroup().location
   sku: { name: 'basic' }
@@ -149,7 +149,7 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
 }</code></pre>
                 </div>
                 <div x-show="iac==='terraform'" class="p-4">
-                    <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-python">resource "azurerm_search_service" "search" {
+                    <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-hcl">resource "azurerm_search_service" "search" {
   name                = "my-search-service"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
@@ -191,7 +191,8 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
 
         try {
             // Ensure index exists
-            await fetch('/api/search/ensure-index', { method: 'POST' });
+            const ensureResp = await fetch('/api/search/ensure-index', { method: 'POST' });
+            if (!ensureResp.ok) { const t = await ensureResp.text(); throw new Error(t || 'HTTP ' + ensureResp.status); }
 
             // Index the document (CU enrichment + push)
             const resp = await fetch('/api/search/index', {

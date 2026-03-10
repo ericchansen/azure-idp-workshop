@@ -47,7 +47,8 @@ async def ensure_index() -> dict[str, Any]:
 @router.post("/index")
 async def index_document(request: IndexRequest) -> dict[str, Any]:
     """Analyze a document with CU, then push enriched data to AI Search."""
-    file_bytes, filename = await read_sample(request.sample)
+    file_bytes = read_sample(request.sample)
+    filename = request.sample
 
     # Run CU custom extraction to get enriched fields
     analyzer_id = (
