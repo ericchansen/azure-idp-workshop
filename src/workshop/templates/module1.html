@@ -263,7 +263,7 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
                     }
                 });
             } else {
-                const v = val?.content || val?.valueString || val?.valueCurrency?.amount || val?.valueDate || val?.valueNumber?.toString() || val?.valuePhoneNumber || '';
+                const v = val?.content ?? val?.valueString ?? (val?.valueCurrency?.amount != null ? String(val.valueCurrency.amount) : undefined) ?? val?.valueDate ?? (val?.valueNumber != null ? val.valueNumber.toString() : undefined) ?? val?.valuePhoneNumber ?? '';
                 result.push({ name, value: v, confidence: val?.confidence });
             }
         }
@@ -481,7 +481,7 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
         <template x-if="prebuiltResult && !hasError(prebuiltResult)">
             <div>
                 <div class="text-sm text-gray-500 mb-4">
-                    ⏱ <span x-text="prebuiltResult.trace?.duration_ms?.toFixed(0) + ' ms'"></span>
+                    ⏱ <span x-text="prebuiltResult.trace?.duration_ms != null ? prebuiltResult.trace.duration_ms.toFixed(0) + ' ms' : '?'"></span>
                     <span x-show="prebuiltResult.result?.documents?.length" class="ml-2">
                         📋 <span x-text="prebuiltResult.result?.documents?.length || 0"></span> document(s) detected
                     </span>
