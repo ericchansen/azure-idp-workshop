@@ -11,17 +11,6 @@ from workshop.services.api_trace import ApiTrace, TraceTimer, sanitize_headers
 
 logger = logging.getLogger(__name__)
 
-# Index field schema — documents enriched by CU
-INDEX_FIELDS = [
-    {"name": "id", "type": "Edm.String", "key": True, "filterable": True},
-    {"name": "title", "type": "Edm.String", "searchable": True},
-    {"name": "content", "type": "Edm.String", "searchable": True},
-    {"name": "summary", "type": "Edm.String", "searchable": True},
-    {"name": "source_doc", "type": "Edm.String", "filterable": True},
-    {"name": "indexed_at", "type": "Edm.DateTimeOffset", "filterable": True, "sortable": True},
-]
-
-
 def _get_credential() -> Any:
     """Return AzureKeyCredential if key set, else DefaultAzureCredential."""
     if settings.ais_key:
@@ -116,7 +105,7 @@ async def ensure_index() -> dict[str, Any]:
             trace.response_status = 500
             result_dict = {}
 
-    trace.duration_ms = timer.elapsed_ms
+    trace.duration_ms = timer.duration_ms
     return {"result": result_dict, "trace": trace.to_dict()}
 
 
@@ -140,7 +129,7 @@ async def index_document(doc: dict[str, Any]) -> dict[str, Any]:
             trace.response_status = 500
             result_dict = {}
 
-    trace.duration_ms = timer.elapsed_ms
+    trace.duration_ms = timer.duration_ms
     return {"result": result_dict, "trace": trace.to_dict()}
 
 
@@ -175,9 +164,7 @@ async def search_documents(query: str, top: int = 5, use_semantic: bool = True) 
             results = await asyncio.to_thread(_run_search)
 
             hits = []
-            total = 0
             for r in results:
-                total += 1
                 hits.append(
                     {
                         "id": r.get("id"),
@@ -189,6 +176,7 @@ async def search_documents(query: str, top: int = 5, use_semantic: bool = True) 
                         "content_preview": (r.get("content") or "")[:300],
                     }
                 )
+            total = results.get_count() if results.get_count() is not None else len(hits)
             trace.response_status = 200
             result_dict = {"hits": hits, "total": total, "query": query}
         except Exception as e:
@@ -196,7 +184,7 @@ async def search_documents(query: str, top: int = 5, use_semantic: bool = True) 
             trace.response_status = 500
             result_dict = {"hits": [], "total": 0, "query": query}
 
-    trace.duration_ms = timer.elapsed_ms
+    trace.duration_ms = timer.duration_ms
     return {"result": result_dict, "trace": trace.to_dict()}
 
 
@@ -220,5 +208,5 @@ async def get_index_stats() -> dict[str, Any]:
             trace.response_status = 500
             result_dict = {"document_count": 0, "storage_size": 0}
 
-    trace.duration_ms = timer.elapsed_ms
+    trace.duration_ms = timer.duration_ms
     return {"result": result_dict, "trace": trace.to_dict()}

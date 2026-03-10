@@ -75,6 +75,22 @@ jobs:
             --scope "$RG_SCOPE" \
             --only-show-errors 2>&1 || true
 
+          # Search Index Data Contributor (read/write indexes and documents)
+          az role assignment create \
+            --assignee-object-id "$PRINCIPAL_ID" \
+            --assignee-principal-type ServicePrincipal \
+            --role "8ebe5a00-799e-43f5-93ac-243d3dce84a7" \
+            --scope "$RG_SCOPE" \
+            --only-show-errors 2>&1 || true
+
+          # Search Service Contributor (manage search service and indexes)
+          az role assignment create \
+            --assignee-object-id "$PRINCIPAL_ID" \
+            --assignee-principal-type ServicePrincipal \
+            --role "7ca78c08-252a-4471-8644-bb5ff32d4ba0" \
+            --scope "$RG_SCOPE" \
+            --only-show-errors 2>&1 || true
+
       - name: Re-authenticate
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2
         with:
