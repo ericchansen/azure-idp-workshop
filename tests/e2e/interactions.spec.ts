@@ -279,7 +279,7 @@ test.describe("Module 1 — UI Interactions", () => {
 
   test("prebuilt field extraction section shows extracted fields with confidence", async ({ page, consoleErrors }) => {
     await page.goto("/module/1");
-    await page.getByRole("button", { name: "Receipt" }).click();
+    await page.getByRole("button", { name: "Invoice" }).click();
     await page.getByRole("button", { name: /Run Analysis/i }).click();
 
     // Prebuilt section should appear with field extraction heading
