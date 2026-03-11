@@ -58,6 +58,8 @@ export async function assertNoErrorBanners(page: Page): Promise<void> {
   // These texts should NEVER appear after a successful analysis
   const forbidden = [
     "Analysis Failed",
+    "Indexing Failed",
+    "Search Failed",
     "Internal Server Error",
     "Unexpected token",
     "Service Unavailable",
