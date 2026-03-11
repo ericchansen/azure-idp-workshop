@@ -130,6 +130,33 @@ test.describe("Smoke: Module 2 — Unstructured Documents", () => {
 });
 
 // ============================================================
+// Module 3 — Search Workflow (Live)
+// ============================================================
+
+test.describe("Smoke: Module 3 — Search Workflow", () => {
+  test("contract: index and search workflow succeeds without browser errors", async ({
+    page,
+    consoleErrors,
+  }) => {
+    await page.goto("/module/3");
+
+    await page.getByRole("button", { name: /Contract/ }).click();
+    await page.getByRole("button", { name: /Enrich & Index Document/i }).click();
+
+    await expect(page.getByText("✅ Document Indexed")).toBeVisible({ timeout: 120_000 });
+    await expect(page.getByText("Search Index")).toBeVisible();
+    await assertNoErrorBanners(page);
+
+    await page.getByPlaceholder("e.g. service agreement obligations").fill("contract");
+    await page.getByRole("button", { name: /Search/ }).click();
+
+    await expect(page.getByText(/🔎 Results — \d+ hit\(s\)/)).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator(".border.border-gray-200.rounded-lg.p-4").first()).toBeVisible();
+    await assertNoErrorBanners(page);
+  });
+});
+
+// ============================================================
 // Guide Page
 // ============================================================
 

@@ -16,6 +16,10 @@ env:
   ACR_NAME: idpworkshopacr
   IMAGE_NAME: idp-workshop
   ENVIRONMENT: prod
+  AI_SERVICES_NAME: idp-workshop-ai
+  STORAGE_ACCOUNT_NAME: idpworkshopstorage
+  SEARCH_SERVICE_NAME: idp-workshop-search
+  IDENTITY_NAME: idp-id
 
 jobs:
   deploy:
@@ -110,6 +114,27 @@ jobs:
           docker push ${IMAGE_REF}
           echo "image-ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve runtime env
+        id: runtime
+        run: |
+          AI_SERVICES_ENDPOINT=$(az cognitiveservices account show \
+            --name ${{ env.AI_SERVICES_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "properties.endpoint" -o tsv)
+          STORAGE_ACCOUNT_URL=$(az storage account show \
+            --name ${{ env.STORAGE_ACCOUNT_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "primaryEndpoints.blob" -o tsv)
+          AZURE_CLIENT_ID=$(az identity show \
+            --name ${{ env.IDENTITY_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "clientId" -o tsv)
+
+          echo "ai_services_endpoint=${AI_SERVICES_ENDPOINT}" >> "$GITHUB_OUTPUT"
+          echo "storage_account_url=${STORAGE_ACCOUNT_URL}" >> "$GITHUB_OUTPUT"
+          echo "ais_endpoint=https://${{ env.SEARCH_SERVICE_NAME }}.search.windows.net" >> "$GITHUB_OUTPUT"
+          echo "azure_client_id=${AZURE_CLIENT_ID}" >> "$GITHUB_OUTPUT"
+
       - name: Deploy app revision
         id: deploy
         run: |
@@ -117,6 +142,16 @@ jobs:
             --name idp-workshop \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --image ${{ steps.image.outputs.image-ref }} \
+            --set-env-vars \
+              ENVIRONMENT=${{ env.ENVIRONMENT }} \
+              AI_SERVICES_ENDPOINT=${{ steps.runtime.outputs.ai_services_endpoint }} \
+              STORAGE_ACCOUNT_URL=${{ steps.runtime.outputs.storage_account_url }} \
+              LOG_LEVEL=INFO \
+              AZURE_CLIENT_ID=${{ steps.runtime.outputs.azure_client_id }} \
+              CU_COMPLETION_DEPLOYMENT=gpt-4.1 \
+              CU_EMBEDDING_DEPLOYMENT=text-embedding-3-large \
+              AIS_ENDPOINT=${{ steps.runtime.outputs.ais_endpoint }} \
+              AIS_INDEX_NAME=workshop-documents \
             --output none
 
           APP_URL=$(az containerapp show \
