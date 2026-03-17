@@ -8,7 +8,7 @@ test.describe("API Contracts", () => {
     expect(body.status).toBe("ok");
   });
 
-  test("list samplesreturns documents", async ({ request }) => {
+  test("list samples returns documents", async ({ request }) => {
     const resp = await request.get("/api/documents/samples");
     expect(resp.ok()).toBeTruthy();
     const data = await resp.json();

@@ -52,7 +52,7 @@ export { expect };
 
 /**
  * Assert that no error banners are visible on the page.
- * Call this after any analysis workflow completes.
+ * Call this after any workflow completes (analysis, indexing, or search).
  */
 export async function assertNoErrorBanners(page: Page): Promise<void> {
   // These texts should NEVER appear after a successful analysis
