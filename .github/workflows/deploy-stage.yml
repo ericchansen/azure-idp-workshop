@@ -45,6 +45,17 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Ensure infrastructure
+        id: infra
+        uses: azure/arm-deploy@a1361c2c2cd398621955b16ca32e01c65ea340f5 # v2
+        with:
+          resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
+          template: infra/main.bicep
+          parameters: >-
+            environmentName=${{ env.ENVIRONMENT }}
+            acrName=${{ env.ACR_NAME }}
+          failOnStdErr: false
+
       - name: Resolve runtime env
         id: runtime
         run: |
@@ -60,20 +71,15 @@ jobs:
             --name ${{ env.IDENTITY_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query "clientId" -o tsv)
-          PRINCIPAL_ID=$(az identity show \
-            --name ${{ env.IDENTITY_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "principalId" -o tsv)
 
           echo "ai_services_endpoint=${AI_SERVICES_ENDPOINT}" >> "$GITHUB_OUTPUT"
           echo "storage_account_url=${STORAGE_ACCOUNT_URL}" >> "$GITHUB_OUTPUT"
           echo "ais_endpoint=https://${{ env.SEARCH_SERVICE_NAME }}.search.windows.net" >> "$GITHUB_OUTPUT"
           echo "azure_client_id=${AZURE_CLIENT_ID}" >> "$GITHUB_OUTPUT"
-          echo "principal_id=${PRINCIPAL_ID}" >> "$GITHUB_OUTPUT"
 
       - name: Ensure role assignments
         run: |
-          PRINCIPAL_ID="${{ steps.runtime.outputs.principal_id }}"
+          PRINCIPAL_ID="${{ steps.infra.outputs.identityPrincipalId }}"
           RG_SCOPE="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.AZURE_RESOURCE_GROUP }}"
 
           # Search Index Data Contributor (read/write indexes and documents)
