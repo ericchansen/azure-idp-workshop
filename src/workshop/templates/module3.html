@@ -206,7 +206,8 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
             this.indexResult = { error: e instanceof Error ? e.message : String(e) };
         }
         this.indexing = false; clearInterval(this.timer);
-        this.refreshStats();
+        // AI Search stats are eventually consistent — delay before refresh
+        setTimeout(() => this.refreshStats(), 3000);
     },
     async doSearch() {
         if (!this.searchQuery.trim()) return;
