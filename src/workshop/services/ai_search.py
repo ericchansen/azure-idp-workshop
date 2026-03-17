@@ -107,6 +107,7 @@ async def ensure_index() -> dict[str, Any]:
             result = await asyncio.to_thread(client.create_or_update_index, index)
             trace.response_status = 200
             result_dict = {"name": result.name, "fields": len(result.fields)}
+            trace.response_body = result_dict
         except HttpResponseError as e:
             trace.error = f"HttpResponseError: {e}"
             trace.response_status = e.status_code or 500
@@ -135,6 +136,7 @@ async def index_document(doc: dict[str, Any]) -> dict[str, Any]:
             succeeded = sum(1 for r in result if r.succeeded)
             trace.response_status = 200
             result_dict = {"indexed": succeeded, "total": len(result)}
+            trace.response_body = result_dict
         except HttpResponseError as e:
             trace.error = f"HttpResponseError: {e}"
             trace.response_status = e.status_code or 500
@@ -196,6 +198,7 @@ async def search_documents(query: str, top: int = 5, use_semantic: bool = True) 
             total = count if count is not None else len(hits)
             trace.response_status = 200
             result_dict = {"hits": hits, "total": total, "query": query}
+            trace.response_body = result_dict
         except HttpResponseError as e:
             trace.error = f"HttpResponseError: {e}"
             trace.response_status = e.status_code or 500
@@ -231,6 +234,7 @@ async def get_index_stats() -> dict[str, Any]:
                     "document_count": stats.document_count,
                     "storage_size": stats.storage_size,
                 }
+            trace.response_body = result_dict
         except HttpResponseError as e:
             trace.error = f"HttpResponseError: {e}"
             trace.response_status = e.status_code or 500
