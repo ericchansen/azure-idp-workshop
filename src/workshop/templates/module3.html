@@ -173,7 +173,7 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
 <div x-data="{
     indexing: false, searching: false,
     selectedSample: '', indexResult: null, searchResult: null,
-    searchQuery: '', statsResult: null,
+    searchQuery: '', statsResult: null, statsTimeout: null,
     indexDone: false, startTime: null, elapsed: '0.0', timer: null,
     hasError(r) { return r?.error || r?.trace?.error || r?.trace?.cu?.error || r?.trace?.search?.error },
     getError(r) {
@@ -207,7 +207,8 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
         }
         this.indexing = false; clearInterval(this.timer);
         // AI Search stats are eventually consistent — delay before refresh
-        setTimeout(() => this.refreshStats(), 3000);
+        if (this.statsTimeout) clearTimeout(this.statsTimeout);
+        this.statsTimeout = setTimeout(() => this.refreshStats(), 3000);
     },
     async doSearch() {
         if (!this.searchQuery.trim()) return;
