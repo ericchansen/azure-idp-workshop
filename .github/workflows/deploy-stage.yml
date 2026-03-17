@@ -19,7 +19,7 @@ env:
   ACR_NAME: idpworkshopacr
   IMAGE_NAME: idp-workshop
   CONTAINERAPP_NAME: idp-workshop
-  ENVIRONMENT: prod
+  ENVIRONMENT: staging
   AI_SERVICES_NAME: idp-workshop-ai
   STORAGE_ACCOUNT_NAME: idpworkshopstorage
   SEARCH_SERVICE_NAME: idp-workshop-search
