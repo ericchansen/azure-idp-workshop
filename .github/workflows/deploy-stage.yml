@@ -82,6 +82,30 @@ jobs:
           PRINCIPAL_ID="${{ steps.infra.outputs.identityPrincipalId }}"
           RG_SCOPE="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.AZURE_RESOURCE_GROUP }}"
 
+          # Storage Blob Data Contributor
+          az role assignment create \
+            --assignee-object-id "$PRINCIPAL_ID" \
+            --assignee-principal-type ServicePrincipal \
+            --role "ba92f5b4-2d11-453d-a403-e96b0029c9fe" \
+            --scope "$RG_SCOPE" \
+            --only-show-errors 2>&1 || true
+
+          # Cognitive Services User
+          az role assignment create \
+            --assignee-object-id "$PRINCIPAL_ID" \
+            --assignee-principal-type ServicePrincipal \
+            --role "a97b65f3-24c7-4388-baec-2e87135dc908" \
+            --scope "$RG_SCOPE" \
+            --only-show-errors 2>&1 || true
+
+          # ACR Pull
+          az role assignment create \
+            --assignee-object-id "$PRINCIPAL_ID" \
+            --assignee-principal-type ServicePrincipal \
+            --role "7f951dda-4ed3-4680-a7ca-43fe172d538d" \
+            --scope "$RG_SCOPE" \
+            --only-show-errors 2>&1 || true
+
           # Search Index Data Contributor (read/write indexes and documents)
           az role assignment create \
             --assignee-object-id "$PRINCIPAL_ID" \
