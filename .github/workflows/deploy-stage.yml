@@ -52,7 +52,7 @@ jobs:
           resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
           template: infra/main.bicep
           parameters: >-
-            environmentName=${{ env.ENVIRONMENT }}
+            environmentName=prod
             acrName=${{ env.ACR_NAME }}
           failOnStdErr: false
 
