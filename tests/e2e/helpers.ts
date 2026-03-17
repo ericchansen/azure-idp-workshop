@@ -55,7 +55,7 @@ export { expect };
  * Call this after any workflow completes (analysis, indexing, or search).
  */
 export async function assertNoErrorBanners(page: Page): Promise<void> {
-  // These texts should NEVER appear after a successful analysis
+  // These texts should NEVER appear after a successful workflow
   const forbidden = [
     "Analysis Failed",
     "Indexing Failed",
