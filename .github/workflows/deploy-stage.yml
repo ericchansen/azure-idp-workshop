@@ -60,11 +60,37 @@ jobs:
             --name ${{ env.IDENTITY_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query "clientId" -o tsv)
+          PRINCIPAL_ID=$(az identity show \
+            --name ${{ env.IDENTITY_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "principalId" -o tsv)
 
           echo "ai_services_endpoint=${AI_SERVICES_ENDPOINT}" >> "$GITHUB_OUTPUT"
           echo "storage_account_url=${STORAGE_ACCOUNT_URL}" >> "$GITHUB_OUTPUT"
           echo "ais_endpoint=https://${{ env.SEARCH_SERVICE_NAME }}.search.windows.net" >> "$GITHUB_OUTPUT"
           echo "azure_client_id=${AZURE_CLIENT_ID}" >> "$GITHUB_OUTPUT"
+          echo "principal_id=${PRINCIPAL_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure role assignments
+        run: |
+          PRINCIPAL_ID="${{ steps.runtime.outputs.principal_id }}"
+          RG_SCOPE="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.AZURE_RESOURCE_GROUP }}"
+
+          # Search Index Data Contributor (read/write indexes and documents)
+          az role assignment create \
+            --assignee-object-id "$PRINCIPAL_ID" \
+            --assignee-principal-type ServicePrincipal \
+            --role "8ebe5a00-799e-43f5-93ac-243d3dce84a7" \
+            --scope "$RG_SCOPE" \
+            --only-show-errors 2>&1 || true
+
+          # Search Service Contributor (manage search service and indexes)
+          az role assignment create \
+            --assignee-object-id "$PRINCIPAL_ID" \
+            --assignee-principal-type ServicePrincipal \
+            --role "7ca78c08-252a-4471-8644-bb5ff32d4ba0" \
+            --scope "$RG_SCOPE" \
+            --only-show-errors 2>&1 || true
 
       - name: Ensure multi-revision mode
         run: |
