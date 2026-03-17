@@ -30,6 +30,11 @@ resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' = {
     hostingMode: 'default'
     replicaCount: 1
     partitionCount: 1
+    authOptions: {
+      aadOrApiKey: {
+        aadAuthFailureMode: 'http401WithBearerChallenge'
+      }
+    }
   }
 }
 
