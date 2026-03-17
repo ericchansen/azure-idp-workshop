@@ -217,3 +217,18 @@ async def test_get_index_stats_http_response_error(mock_get_client: MagicMock) -
 
     assert result["result"]["document_count"] == 0
     assert result["trace"]["response"]["status"] == 404
+
+
+@patch("workshop.services.ai_search._get_index_client")
+async def test_get_index_stats_dict_return(mock_get_client: MagicMock) -> None:
+    """SDK may return a dict instead of a model object via asyncio.to_thread."""
+    mock_get_client.return_value.get_index_statistics.return_value = {
+        "document_count": 7,
+        "storage_size": 4096,
+    }
+
+    result = await get_index_stats()
+
+    assert result["result"]["document_count"] == 7
+    assert result["result"]["storage_size"] == 4096
+    assert result["trace"]["response"]["status"] == 200
