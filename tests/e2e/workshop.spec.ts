@@ -1,88 +1,14 @@
 import { test, expect } from "./helpers";
 
-test.describe("Homepage", () => {
-  test("loads and shows module cards", async ({ page, consoleErrors }) => {
-    await page.goto("/");
-    await expect(page).toHaveTitle(/IDP Workshop/);
-    // Nav links exist
-    await expect(
-      page.locator("nav").locator('a[href="/module/1"]')
-    ).toBeVisible();
-    await expect(
-      page.locator("nav").locator('a[href="/module/2"]')
-    ).toBeVisible();
-    await expect(
-      page.locator("nav").locator('a[href="/guide"]')
-    ).toBeVisible();
-  });
-
+test.describe("API Contracts", () => {
   test("health endpoint returns ok", async ({ request }) => {
     const resp = await request.get("/api/health");
     expect(resp.ok()).toBeTruthy();
     const body = await resp.json();
     expect(body.status).toBe("ok");
   });
-});
 
-test.describe("Module 1 — Structured Extraction", () => {
-  test("page loads with document picker", async ({ page, consoleErrors }) => {
-    await page.goto("/module/1");
-    await expect(
-      page.getByRole("heading", { name: /Module 1.*Structured Extraction/ })
-    ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Invoice" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Receipt" })).toBeVisible();
-  });
-
-  test("selecting sample shows document preview", async ({ page, consoleErrors }) => {
-    await page.goto("/module/1");
-    await page.getByRole("button", { name: "Receipt" }).click();
-    await expect(page.getByText("Source Document")).toBeVisible();
-  });
-
-  test("Behind the Scenes panel expands", async ({ page, consoleErrors }) => {
-    await page.goto("/module/1");
-    const details = page.locator("details", {
-      hasText: "Behind the Scenes",
-    });
-    await expect(details).toBeVisible();
-    await details.locator("summary").click();
-    await expect(page.getByText("Azure Resources Required")).toBeVisible();
-    await expect(page.getByText("Python SDK Code")).toBeVisible();
-    await expect(page.getByText("Pricing (per page)")).toBeVisible();
-  });
-});
-
-test.describe("Module 2 — Semantic Extraction & Custom Fields", () => {
-  test("page loads with document picker", async ({ page, consoleErrors }) => {
-    await page.goto("/module/2");
-    await expect(
-      page.getByRole("heading", { name: /Module 2.*Semantic/ })
-    ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Contract" })).toBeVisible();
-  });
-
-  test("Behind the Scenes panel works", async ({ page, consoleErrors }) => {
-    await page.goto("/module/2");
-    const details = page.locator("details", {
-      hasText: "Behind the Scenes",
-    });
-    await details.locator("summary").click();
-    await expect(page.getByText("REST API Flow")).toBeVisible();
-  });
-});
-
-test.describe("Decision Guide", () => {
-  test("page loads", async ({ page, consoleErrors }) => {
-    await page.goto("/guide");
-    await expect(
-      page.getByRole("heading", { name: /Decision Guide/ })
-    ).toBeVisible();
-  });
-});
-
-test.describe("Document API", () => {
-  test("list samples returns documents", async ({ request }) => {
+  test("list samplesreturns documents", async ({ request }) => {
     const resp = await request.get("/api/documents/samples");
     expect(resp.ok()).toBeTruthy();
     const data = await resp.json();

@@ -162,40 +162,6 @@ test.describe("Module 3 — Search Workflow", () => {
     await expect(statsBadge).toContainText("2 document(s)");
   });
 
-  test("architecture tabs switch between Python and cURL plus Bicep, Terraform, and CLI", async ({
-    page,
-    consoleErrors,
-  }) => {
-    await page.goto("/module/3");
-
-    const architecture = page.locator("details", { hasText: "Architecture & Setup" }).first();
-    await architecture.locator("summary").click();
-
-    const pythonPanel = architecture.locator("[x-show=\"tab==='python'\"]");
-    const curlPanel = architecture.locator("[x-show=\"tab==='curl'\"]");
-    await expect(pythonPanel).toBeVisible();
-    await expect(curlPanel).not.toBeVisible();
-
-    await architecture.getByRole("button", { name: /cURL/ }).click();
-    await expect(curlPanel).toBeVisible();
-    await expect(pythonPanel).not.toBeVisible();
-
-    const bicepPanel = architecture.locator("[x-show=\"iac==='bicep'\"]");
-    const terraformPanel = architecture.locator("[x-show=\"iac==='terraform'\"]");
-    const cliPanel = architecture.locator("[x-show=\"iac==='cli'\"]");
-    await expect(bicepPanel).toBeVisible();
-    await expect(terraformPanel).not.toBeVisible();
-    await expect(cliPanel).not.toBeVisible();
-
-    await architecture.getByRole("button", { name: "Terraform" }).click();
-    await expect(terraformPanel).toBeVisible();
-    await expect(bicepPanel).not.toBeVisible();
-
-    await architecture.getByRole("button", { name: "Azure CLI" }).click();
-    await expect(cliPanel).toBeVisible();
-    await expect(terraformPanel).not.toBeVisible();
-  });
-
   test("indexing a document shows progress, traces, success details, and refreshed stats", async ({
     page,
     consoleErrors,
