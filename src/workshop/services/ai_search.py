@@ -220,10 +220,17 @@ async def get_index_stats() -> dict[str, Any]:
             client = _get_index_client()
             stats = await asyncio.to_thread(client.get_index_statistics, settings.ais_index_name)
             trace.response_status = 200
-            result_dict = {
-                "document_count": stats.document_count,
-                "storage_size": stats.storage_size,
-            }
+            # SDK may return a model object or a dict depending on context
+            if isinstance(stats, dict):
+                result_dict = {
+                    "document_count": stats.get("document_count", 0),
+                    "storage_size": stats.get("storage_size", 0),
+                }
+            else:
+                result_dict = {
+                    "document_count": stats.document_count,
+                    "storage_size": stats.storage_size,
+                }
         except HttpResponseError as e:
             trace.error = f"HttpResponseError: {e}"
             trace.response_status = e.status_code or 500
