@@ -67,8 +67,8 @@ async def _process_single(sample: str) -> dict[str, Any]:
     """Process a single document: read → CU extract → index."""
     try:
         file_bytes = read_sample(sample)
-    except FileNotFoundError:
-        return {"sample": sample, "error": f"Sample not found: {sample}"}
+    except Exception as e:
+        return {"sample": sample, "error": f"Cannot read sample: {e}"}
 
     # Build stable analyzer ID from field signatures
     field_sigs = sorted(f"{f['name']}:{f['type']}:{f['description']}" for f in BATCH_FIELDS)
@@ -87,8 +87,18 @@ async def _process_single(sample: str) -> dict[str, Any]:
     cu_fields = cu_result.get("result", {}).get("fields", {})
     cu_duration = cu_result.get("trace", {}).get("duration_ms", 0)
 
+    # Check for service-level failures (CU swallows errors into trace)
+    cu_trace_status = cu_result.get("trace", {}).get("response", {}).get("status", 0)
+    if cu_trace_status >= 400 or cu_result.get("trace", {}).get("error"):
+        return {
+            "sample": sample,
+            "error": cu_result.get("trace", {}).get("error", f"CU returned HTTP {cu_trace_status}"),
+            "cu_duration_ms": round(cu_duration, 2),
+            "cu_trace": cu_result.get("trace"),
+        }
+
     # Build search document
-    doc_id = hashlib.md5(f"batch_{sample}_{datetime.now(tz=UTC).isoformat()}".encode()).hexdigest()
+    doc_id = hashlib.md5(f"batch_{sample}".encode()).hexdigest()
 
     def _extract(fields: dict[str, Any], name: str) -> str:
         field = fields.get(name, {})
@@ -119,6 +129,21 @@ async def _process_single(sample: str) -> dict[str, Any]:
         }
 
     search_duration = index_result.get("trace", {}).get("duration_ms", 0)
+
+    # Check for search-level failures
+    search_trace_status = index_result.get("trace", {}).get("response", {}).get("status", 0)
+    if search_trace_status >= 400 or index_result.get("trace", {}).get("error"):
+        return {
+            "sample": sample,
+            "error": index_result.get("trace", {}).get(
+                "error", f"Search returned HTTP {search_trace_status}"
+            ),
+            "cu_fields": {f["name"]: _extract(cu_fields, f["name"]) for f in BATCH_FIELDS},
+            "cu_duration_ms": round(cu_duration, 2),
+            "search_duration_ms": round(search_duration, 2),
+            "cu_trace": cu_result.get("trace"),
+            "search_trace": index_result.get("trace"),
+        }
 
     return {
         "sample": sample,
