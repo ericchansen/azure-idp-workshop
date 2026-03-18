@@ -119,8 +119,8 @@ resource proxy 'Microsoft.App/containerApps@2024-03-01' = {
   }
 }
 
-@description('Proxy internal URL')
-output internalUrl string = 'http://${name}'
+@description('Proxy internal URL (Container Apps internal FQDN)')
+output internalUrl string = 'https://${proxy.properties.configuration.ingress.fqdn}'
 
 @description('Proxy resource name')
 output name string = proxy.name

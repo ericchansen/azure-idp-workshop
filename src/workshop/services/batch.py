@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import hashlib
-import logging
 from datetime import UTC, datetime
 from typing import Any
 
 from workshop.routers.documents import read_sample
 from workshop.services import ai_search as ais_service
 from workshop.services import content_understanding as cu_service
-
-logger = logging.getLogger(__name__)
 
 # Default fields for batch enrichment
 BATCH_FIELDS = [
@@ -27,6 +24,19 @@ async def process_batch(samples: list[str]) -> dict[str, Any]:
     """
     # Ensure index exists first
     ensure_result = await ais_service.ensure_index()
+    ensure_status = ensure_result.get("trace", {}).get("response", {}).get("status", 0)
+    if ensure_status >= 400 or ensure_result.get("trace", {}).get("error"):
+        return {
+            "result": {"documents": [], "summary": {"total": 0, "succeeded": 0, "failed": 0}},
+            "error": ensure_result.get("trace", {}).get(
+                "error", f"ensure_index returned HTTP {ensure_status}"
+            ),
+            "trace": {"ensure_index": ensure_result.get("trace", {})},
+        }
+
+    # Compute analyzer ID once (constant across all docs)
+    field_sigs = sorted(f"{f['name']}:{f['type']}:{f['description']}" for f in BATCH_FIELDS)
+    analyzer_id = "workshop_batch_" + hashlib.md5("|".join(field_sigs).encode()).hexdigest()[:12]
 
     results: list[dict[str, Any]] = []
     total_cu_ms = 0.0
@@ -35,7 +45,7 @@ async def process_batch(samples: list[str]) -> dict[str, Any]:
     failed = 0
 
     for sample in samples:
-        doc_result = await _process_single(sample)
+        doc_result = await _process_single(sample, analyzer_id)
         results.append(doc_result)
 
         if doc_result.get("error"):
@@ -63,16 +73,12 @@ async def process_batch(samples: list[str]) -> dict[str, Any]:
     }
 
 
-async def _process_single(sample: str) -> dict[str, Any]:
+async def _process_single(sample: str, analyzer_id: str) -> dict[str, Any]:
     """Process a single document: read → CU extract → index."""
     try:
         file_bytes = read_sample(sample)
     except Exception as e:
         return {"sample": sample, "error": f"Cannot read sample: {e}"}
-
-    # Build stable analyzer ID from field signatures
-    field_sigs = sorted(f"{f['name']}:{f['type']}:{f['description']}" for f in BATCH_FIELDS)
-    analyzer_id = "workshop_batch_" + hashlib.md5("|".join(field_sigs).encode()).hexdigest()[:12]
 
     # CU enrichment
     try:
