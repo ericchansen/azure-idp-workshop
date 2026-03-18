@@ -21,9 +21,9 @@
             <h4 class="font-semibold text-emerald-800 mb-3">⚡ What is PTU (Provisioned Throughput)?</h4>
             <div class="bg-white rounded-lg border p-4 space-y-3 text-sm">
                 <p><strong>PAYG (Pay-As-You-Go)</strong> — you pay per token/call. Simple, but costs scale linearly and you're subject to rate limits.</p>
-                <p><strong>PTU (Provisioned Throughput Units)</strong> — you reserve dedicated capacity. Fixed monthly cost regardless of usage. No rate limits within your allocation.</p>
+                <p><strong>PTU (Provisioned Throughput Units)</strong> — you reserve dedicated capacity. Fixed monthly cost regardless of usage. No rate limits within your allocation, so headroom outside peak traffic can still be used for background work.</p>
                 <div class="bg-amber-50 border border-amber-200 rounded p-3">
-                    <strong>When PTU makes sense:</strong> When your monthly PAYG spend exceeds the PTU reservation cost, or when you need guaranteed throughput for batch processing without throttling.
+                    <strong>When PTU makes sense:</strong> When your monthly PAYG spend exceeds the PTU reservation cost, when you need guaranteed throughput for batch processing without throttling, or when you already carry PTU for peak hours and can use that off-hours capacity for jobs like document enrichment instead of leaving it idle.
                 </div>
             </div>
         </div>
@@ -75,7 +75,7 @@
         <div>
             <h4 class="font-semibold text-emerald-800 mb-3">🔄 SimpleL7Proxy — How It Works</h4>
             <div class="bg-white rounded-lg border p-4 text-sm space-y-2">
-                <p><a href="https://github.com/microsoft/SimpleL7Proxy" target="_blank" class="text-blue-600 underline">SimpleL7Proxy</a> is an open-source Layer 7 router for Azure AI workloads:</p>
+                <p><a href="https://github.com/microsoft/SimpleL7Proxy" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline">SimpleL7Proxy</a> is an open-source Layer 7 router for Azure AI workloads:</p>
                 <ul class="list-disc pl-6 space-y-1">
                     <li><strong>Priority routing</strong> — PTU first, PAYG fallback when PTU is saturated</li>
                     <li><strong>Circuit breaker</strong> — auto-failover when a backend returns errors (configurable threshold)</li>
@@ -146,12 +146,12 @@
             </div>
             <div x-show="iacTab === 'env'">
                 <p class="text-xs text-gray-500 mb-2">SimpleL7Proxy configuration via environment variables:</p>
-                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code># Backend endpoints
-Host1="host=https://my-ptu.openai.azure.com;processor=OpenAI;usemi=true"
-Host2="host=https://my-payg.openai.azure.com;processor=OpenAI;usemi=true"
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code># Backend endpoints (mode=direct for Azure AI Services)
+Host1="host=https://my-ptu.openai.azure.com;usemi=true;mode=direct"
+Host2="host=https://my-payg.openai.azure.com;usemi=true;mode=direct"
 
-# Routing
-LoadBalanceMode=round-robin
+# Routing — latency-based prefers the faster (non-throttled) endpoint
+LoadBalanceMode=latency
 IterationMode=MultiPass
 
 # Circuit breaker — failover after 20 errors in 60s
