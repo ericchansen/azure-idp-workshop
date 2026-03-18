@@ -64,17 +64,17 @@ resource proxy 'Microsoft.App/containerApps@2024-03-01' = {
             // Backend 1: PTU (primary — provisioned throughput, no per-call cost)
             {
               name: 'Host1'
-              value: 'host=${ptuEndpoint};processor=OpenAI;usemi=true;path=/;probe=/health'
+              value: 'host=${ptuEndpoint};usemi=true;mode=direct;path=/'
             }
 
             // Backend 2: PAYG (fallback — pay-as-you-go when PTU is saturated)
             {
               name: 'Host2'
-              value: 'host=${paygEndpoint};processor=OpenAI;usemi=true;path=/;probe=/health'
+              value: 'host=${paygEndpoint};usemi=true;mode=direct;path=/'
             }
 
-            // Load balancing — try PTU first, fall back to PAYG
-            { name: 'LoadBalanceMode', value: 'round-robin' }
+            // Load balancing — latency-based prefers the faster (non-throttled) endpoint
+            { name: 'LoadBalanceMode', value: 'latency' }
             { name: 'IterationMode', value: 'MultiPass' }
             { name: 'MaxAttempts', value: '10' }
 
