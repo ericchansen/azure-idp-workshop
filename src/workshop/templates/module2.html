@@ -322,6 +322,28 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
     },
     removeField(idx) { this.fields.splice(idx, 1); },
     editingField: '',
+    fieldPresets: {
+        'contract': [
+            { name: 'summary', type: 'string', description: 'A 2-3 sentence summary of the document' },
+            { name: 'key_parties', type: 'string', description: 'Names of all parties mentioned' },
+            { name: 'obligations', type: 'string', description: 'Key obligations or requirements' },
+            { name: 'risk_level', type: 'string', description: 'Overall risk level: low, medium, or high' },
+            { name: 'sentiment', type: 'string', description: 'Overall sentiment: positive, neutral, or negative' },
+        ],
+        'purchase-order': [
+            { name: 'vendor', type: 'string', description: 'Vendor/supplier company name' },
+            { name: 'po_number', type: 'string', description: 'Purchase order number' },
+            { name: 'total_amount', type: 'string', description: 'Total dollar amount including tax' },
+            { name: 'line_items', type: 'string', description: 'List of items ordered with quantities and prices' },
+            { name: 'payment_terms', type: 'string', description: 'Payment terms (e.g., Net 30)' },
+            { name: 'delivery_date', type: 'string', description: 'Expected delivery date' },
+        ],
+    },
+    switchFieldPreset(preset) {
+        if (this.fieldPresets[preset]) {
+            this.fields = JSON.parse(JSON.stringify(this.fieldPresets[preset]));
+        }
+    },
     startAnalysis() {
         if (!this.selectedSample) return;
         this.loading = true; this.diResult = null; this.cuResult = null;
@@ -352,14 +374,19 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
     <div class="bg-white rounded-lg shadow p-6 mb-6">
         <h2 class="text-lg font-semibold mb-4">📄 Choose an Unstructured Document</h2>
         <div class="flex flex-wrap gap-3">
-            <button @click="selectedSample = 'contract.pdf'"
+            <button @click="selectedSample = 'contract.pdf'; switchFieldPreset('contract')"
                 :class="selectedSample === 'contract.pdf' ? 'ring-2 ring-purple-500 bg-purple-50' : 'bg-gray-100 hover:bg-gray-200'"
                 class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 📜 Contract (PDF)
             </button>
+            <button @click="selectedSample = 'purchase-order.pdf'; switchFieldPreset('purchase-order')"
+                :class="selectedSample === 'purchase-order.pdf' ? 'ring-2 ring-purple-500 bg-purple-50' : 'bg-gray-100 hover:bg-gray-200'"
+                class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                🧾 Purchase Order (PDF)
+            </button>
         </div>
         <p class="text-sm text-gray-500 mt-3">
-            DI will extract raw text layout. CU will infer meaning — key parties, obligations, sentiment, and risk.
+            DI extracts raw text and detects table structures. CU uses GenAI to infer meaning — fields switch automatically based on document type.
         </p>
         <p class="mt-3 text-xs text-gray-500 italic">Both services run on the same document so you can compare. In production, CU alone handles this type of extraction.</p>
         <button @click="startAnalysis()" :disabled="!selectedSample || loading"
@@ -516,6 +543,32 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
                         <pre x-ref="diRaw" class="hidden bg-gray-50 p-3 rounded text-xs overflow-auto max-h-80"
                              x-text="JSON.stringify(diResult.result, null, 2)?.substring(0, 5000)"></pre>
                     </div>
+                    <!-- Detected tables -->
+                    <template x-if="diResult.result?.tables?.length > 0">
+                        <div class="mt-4">
+                            <h4 class="font-medium mb-2 text-sm">📊 Detected Tables</h4>
+                            <template x-for="(table, ti) in diResult.result.tables" :key="ti">
+                                <div class="mb-3 overflow-auto">
+                                    <div class="text-xs text-gray-500 mb-1" x-text="'Table ' + (ti+1) + ': ' + (table.rowCount || '?') + ' rows × ' + (table.columnCount || '?') + ' cols'"></div>
+                                    <div class="rendered-md" x-html="(() => {
+                                        if (!table.cells) return '<em>No cell data</em>';
+                                        const rows = table.rowCount || 0;
+                                        const cols = table.columnCount || 0;
+                                        let grid = Array.from({length: rows}, () => Array(cols).fill(''));
+                                        table.cells.forEach(c => { if (c.rowIndex < rows && c.columnIndex < cols) grid[c.rowIndex][c.columnIndex] = c.content || ''; });
+                                        let html = '<table>';
+                                        grid.forEach((row, ri) => {
+                                            html += '<tr>' + row.map((cell, ci) => {
+                                                const isHeader = ri === 0 || (table.cells.find(c => c.rowIndex === ri && c.columnIndex === ci)?.kind === 'columnHeader');
+                                                return isHeader ? '<th>' + cell + '</th>' : '<td>' + cell + '</td>';
+                                            }).join('') + '</tr>';
+                                        });
+                                        return html + '</table>';
+                                    })()"></div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
                     <details class="mt-4">
                         <summary class="cursor-pointer text-sm font-medium text-blue-600 hover:text-blue-800">📡 View API Trace</summary>
                         <pre class="mt-2 bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto max-h-80"><code x-text="JSON.stringify(diResult.trace, null, 2)"></code></pre>
