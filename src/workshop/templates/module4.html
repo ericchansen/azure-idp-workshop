@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+{% block title %}Module 4: Batch Pipeline at Scale — IDP Workshop{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-bold mb-2">Module 4: Batch Pipeline at Scale</h1>
+    <p class="text-gray-600 text-lg">
+        Process all workshop documents through the CU enrichment + AI Search indexing pipeline in one batch.
+        Learn how PTU and SimpleL7Proxy enable cost-effective scaling for production workloads.
+    </p>
+</div>
+
+<!-- Architecture & Setup -->
+<details class="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg">
+    <summary class="cursor-pointer p-5 font-semibold text-emerald-900 hover:text-emerald-700">
+        🏗️ Architecture & Setup — PTU + SimpleL7Proxy
+    </summary>
+    <div class="px-5 pb-5 space-y-6">
+        <!-- PTU Explainer -->
+        <div>
+            <h4 class="font-semibold text-emerald-800 mb-3">⚡ What is PTU (Provisioned Throughput)?</h4>
+            <div class="bg-white rounded-lg border p-4 space-y-3 text-sm">
+                <p><strong>PAYG (Pay-As-You-Go)</strong> — you pay per token/call. Simple, but costs scale linearly and you're subject to rate limits.</p>
+                <p><strong>PTU (Provisioned Throughput Units)</strong> — you reserve dedicated capacity. Fixed monthly cost regardless of usage. No rate limits within your allocation.</p>
+                <div class="bg-amber-50 border border-amber-200 rounded p-3">
+                    <strong>When PTU makes sense:</strong> When your monthly PAYG spend exceeds the PTU reservation cost, or when you need guaranteed throughput for batch processing without throttling.
+                </div>
+            </div>
+        </div>
+
+        <!-- Architecture Diagram -->
+        <div>
+            <h4 class="font-semibold text-emerald-800 mb-3">📐 Proxy Architecture</h4>
+            <div class="bg-white rounded-lg border p-4 overflow-x-auto">
+                <div class="flex items-center justify-center gap-2 text-xs font-mono min-w-[800px]">
+                    <div class="bg-rose-100 border-2 border-rose-400 rounded-lg px-3 py-2 text-center">
+                        <div class="font-bold text-rose-800">Batch Worker</div>
+                        <div class="text-rose-600">Documents queue</div>
+                    </div>
+                    <div class="text-gray-400 font-bold">→</div>
+                    <div class="bg-orange-100 border-2 border-orange-400 rounded-lg px-3 py-2 text-center">
+                        <div class="font-bold text-orange-800">SimpleL7Proxy</div>
+                        <div class="text-orange-600">Priority routing</div>
+                        <div class="text-orange-600">Circuit breaker</div>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <div class="text-gray-400 font-bold">→ PTU</div>
+                        <div class="text-gray-400 font-bold">→ PAYG</div>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <div class="bg-green-50 border border-green-300 rounded px-3 py-1.5 text-center">
+                            <div class="font-bold text-green-700">PTU Endpoint</div>
+                            <div class="text-green-600">Reserved capacity</div>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-300 rounded px-3 py-1.5 text-center">
+                            <div class="font-bold text-blue-700">PAYG Endpoint</div>
+                            <div class="text-blue-600">Fallback (on-demand)</div>
+                        </div>
+                    </div>
+                    <div class="text-gray-400 font-bold">→</div>
+                    <div class="bg-purple-100 border-2 border-purple-400 rounded-lg px-3 py-2 text-center">
+                        <div class="font-bold text-purple-800">CU</div>
+                        <div class="text-purple-600">Enrichment</div>
+                    </div>
+                    <div class="text-gray-400 font-bold">→</div>
+                    <div class="bg-indigo-100 border-2 border-indigo-400 rounded-lg px-3 py-2 text-center">
+                        <div class="font-bold text-indigo-800">AI Search</div>
+                        <div class="text-indigo-600">Index</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SimpleL7Proxy Overview -->
+        <div>
+            <h4 class="font-semibold text-emerald-800 mb-3">🔄 SimpleL7Proxy — How It Works</h4>
+            <div class="bg-white rounded-lg border p-4 text-sm space-y-2">
+                <p><a href="https://github.com/microsoft/SimpleL7Proxy" target="_blank" class="text-blue-600 underline">SimpleL7Proxy</a> is an open-source Layer 7 router for Azure AI workloads:</p>
+                <ul class="list-disc pl-6 space-y-1">
+                    <li><strong>Priority routing</strong> — PTU first, PAYG fallback when PTU is saturated</li>
+                    <li><strong>Circuit breaker</strong> — auto-failover when a backend returns errors (configurable threshold)</li>
+                    <li><strong>Health probes</strong> — continuous backend monitoring with configurable intervals</li>
+                    <li><strong>Managed Identity</strong> — no API keys in config, uses Azure RBAC</li>
+                    <li><strong>Self-hosted</strong> — runs as a Container App, full control over routing logic</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Cost Comparison -->
+        <div>
+            <h4 class="font-semibold text-emerald-800 mb-3">💰 Cost Comparison: PTU vs PAYG</h4>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm border-collapse">
+                    <thead>
+                        <tr class="bg-emerald-100">
+                            <th class="border border-emerald-200 px-3 py-2 text-left">Scenario</th>
+                            <th class="border border-emerald-200 px-3 py-2 text-right">PAYG Cost</th>
+                            <th class="border border-emerald-200 px-3 py-2 text-right">PTU Cost</th>
+                            <th class="border border-emerald-200 px-3 py-2 text-right">Savings</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="border border-emerald-200 px-3 py-2">100 docs/day (light)</td>
+                            <td class="border border-emerald-200 px-3 py-2 text-right">~$90/mo</td>
+                            <td class="border border-emerald-200 px-3 py-2 text-right">~$2,000/mo</td>
+                            <td class="border border-emerald-200 px-3 py-2 text-right text-red-600">PAYG wins</td>
+                        </tr>
+                        <tr class="bg-gray-50">
+                            <td class="border border-emerald-200 px-3 py-2">5,000 docs/day (medium)</td>
+                            <td class="border border-emerald-200 px-3 py-2 text-right">~$4,500/mo</td>
+                            <td class="border border-emerald-200 px-3 py-2 text-right">~$2,000/mo</td>
+                            <td class="border border-emerald-200 px-3 py-2 text-right text-green-600">55% savings</td>
+                        </tr>
+                        <tr>
+                            <td class="border border-emerald-200 px-3 py-2">50,000 docs/day (heavy)</td>
+                            <td class="border border-emerald-200 px-3 py-2 text-right">~$45,000/mo</td>
+                            <td class="border border-emerald-200 px-3 py-2 text-right">~$6,000/mo</td>
+                            <td class="border border-emerald-200 px-3 py-2 text-right text-green-600">87% savings</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">* Estimates based on GPT-4.1 pricing. Actual costs depend on document size, field count, and region.</p>
+        </div>
+
+        <!-- IaC -->
+        <div x-data="{ iacTab: 'bicep' }">
+            <h4 class="font-semibold text-emerald-800 mb-3">🧱 Deploy SimpleL7Proxy</h4>
+            <div class="flex gap-2 mb-3">
+                <button @click="iacTab = 'bicep'" :class="iacTab === 'bicep' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'" class="text-xs px-3 py-1.5 rounded font-medium transition-all">Bicep</button>
+                <button @click="iacTab = 'env'" :class="iacTab === 'env' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'" class="text-xs px-3 py-1.5 rounded font-medium transition-all">Env Config</button>
+            </div>
+            <div x-show="iacTab === 'bicep'">
+                <p class="text-xs text-gray-500 mb-2">Deploy as a Container App alongside your workshop infra:</p>
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code>module proxy 'modules/proxy.bicep' = {
+  name: 'proxy'
+  params: {
+    name: 'idp-proxy'
+    environmentId: appEnv.outputs.environmentId
+    userAssignedIdentityId: identity.id
+    ptuEndpoint: 'https://my-ptu.openai.azure.com'
+    paygEndpoint: 'https://my-payg.openai.azure.com'
+  }
+}</code></pre>
+            </div>
+            <div x-show="iacTab === 'env'">
+                <p class="text-xs text-gray-500 mb-2">SimpleL7Proxy configuration via environment variables:</p>
+                <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code># Backend endpoints
+Host1="host=https://my-ptu.openai.azure.com;processor=OpenAI;usemi=true"
+Host2="host=https://my-payg.openai.azure.com;processor=OpenAI;usemi=true"
+
+# Routing
+LoadBalanceMode=round-robin
+IterationMode=MultiPass
+
+# Circuit breaker — failover after 20 errors in 60s
+CBErrorThreshold=20
+CBTimeslice=60
+
+# Workers and queue
+Workers=50
+MaxQueueLength=500</code></pre>
+            </div>
+        </div>
+    </div>
+</details>
+
+<!-- Interactive Demo -->
+<div x-data="{
+    processing: false, batchResult: null,
+    startTime: null, elapsed: '0.0', timer: null,
+    currentDoc: '', completedDocs: 0, totalDocs: 0,
+    hasError(r) { return r?.error },
+    async runBatch() {
+        this.processing = true; this.batchResult = null;
+        this.completedDocs = 0; this.totalDocs = 3;
+        this.startTime = Date.now();
+        this.timer = setInterval(() => { this.elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1); }, 100);
+
+        try {
+            const resp = await fetch('/api/batch/process', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ samples: ['contract.pdf', 'invoice.pdf', 'receipt.png'] })
+            });
+            if (!resp.ok) { const t = await resp.text(); throw new Error(t || 'HTTP ' + resp.status); }
+            this.batchResult = await resp.json();
+        } catch (e) {
+            this.batchResult = { error: e instanceof Error ? e.message : String(e) };
+        }
+        this.processing = false; clearInterval(this.timer);
+    }
+}" x-cloak>
+
+    <!-- Batch Controls -->
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">🚀 Batch Process All Documents</h2>
+        <p class="text-sm text-gray-600 mb-4">
+            Process all 3 workshop documents through the full pipeline: CU enrichment (summary + key topics) → AI Search indexing.
+            In production, this would run through SimpleL7Proxy routing to PTU for cost savings.
+        </p>
+
+        <!-- What to Look For -->
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+            <h3 class="font-semibold text-amber-900 mb-2">🎯 What to Look For</h3>
+            <ul class="text-sm text-amber-800 space-y-1 list-disc pl-5">
+                <li><strong>CU processing time</strong> — each document takes 15-60s for GenAI extraction</li>
+                <li><strong>Search indexing</strong> — near-instant after CU completes</li>
+                <li><strong>Total pipeline time</strong> — sequential processing adds up; PTU eliminates throttling</li>
+                <li><strong>Per-document traces</strong> — inspect CU and Search API calls for each document</li>
+            </ul>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <button @click="runBatch()" :disabled="processing"
+                class="px-6 py-2.5 bg-rose-600 text-white rounded-lg font-medium hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                <span x-show="!processing">⚡ Run Batch Pipeline</span>
+                <span x-show="processing" class="flex items-center gap-2">
+                    <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"/><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                    Processing...
+                </span>
+            </button>
+            <span x-show="processing" class="text-sm text-gray-500">
+                ⏱️ <span x-text="elapsed + 's'" class="font-mono text-rose-600"></span>
+            </span>
+        </div>
+
+        <!-- Documents being processed -->
+        <div class="mt-4 text-sm text-gray-500">
+            Documents: <span class="font-mono">contract.pdf</span>, <span class="font-mono">invoice.pdf</span>, <span class="font-mono">receipt.png</span>
+        </div>
+    </div>
+
+    <!-- Progress -->
+    <div x-show="processing" x-transition class="bg-white rounded-lg shadow p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">⏳ Pipeline Running — <span x-text="elapsed + 's'" class="text-rose-600"></span></h2>
+        <div class="space-y-3">
+            <div class="flex items-center gap-3">
+                <div class="bg-rose-500 animate-pulse w-3 h-3 rounded-full"></div>
+                <span class="text-sm">Processing documents sequentially through CU + Search...</span>
+            </div>
+            <p class="text-xs text-gray-500">Each document: CU extraction (~15-60s) → Search indexing (~0.1s)</p>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <template x-if="batchResult && !batchResult.error">
+        <div class="space-y-6">
+            <!-- Summary -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold mb-4 text-green-700">✅ Batch Complete</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                        <div class="text-2xl font-bold text-green-700" x-text="batchResult.result?.summary?.succeeded ?? 0"></div>
+                        <div class="text-xs text-green-600">Succeeded</div>
+                    </div>
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                        <div class="text-2xl font-bold text-red-700" x-text="batchResult.result?.summary?.failed ?? 0"></div>
+                        <div class="text-xs text-red-600">Failed</div>
+                    </div>
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
+                        <div class="text-2xl font-bold text-purple-700" x-text="(batchResult.result?.summary?.total_cu_ms / 1000)?.toFixed(1) + 's'"></div>
+                        <div class="text-xs text-purple-600">CU Time</div>
+                    </div>
+                    <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-center">
+                        <div class="text-2xl font-bold text-indigo-700" x-text="(batchResult.result?.summary?.total_search_ms / 1000)?.toFixed(1) + 's'"></div>
+                        <div class="text-xs text-indigo-600">Search Time</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Per-document results -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold mb-4">📄 Per-Document Results</h2>
+                <div class="space-y-4">
+                    <template x-for="(doc, i) in batchResult.result?.documents ?? []" :key="i">
+                        <div class="border rounded-lg p-4" :class="doc.error ? 'border-red-200 bg-red-50' : 'border-gray-200'">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="font-medium" x-text="doc.sample"></h3>
+                                <div class="flex gap-2">
+                                    <span x-show="!doc.error" class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">✅ Indexed</span>
+                                    <span x-show="doc.error" class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">❌ Failed</span>
+                                    <span x-show="doc.cu_duration_ms" class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700"
+                                          x-text="'CU: ' + (doc.cu_duration_ms / 1000)?.toFixed(1) + 's'"></span>
+                                    <span x-show="doc.search_duration_ms" class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700"
+                                          x-text="'Search: ' + doc.search_duration_ms?.toFixed(0) + 'ms'"></span>
+                                </div>
+                            </div>
+
+                            <!-- Error display -->
+                            <template x-if="doc.error">
+                                <p class="text-sm text-red-700" x-text="doc.error"></p>
+                            </template>
+
+                            <!-- Extracted fields -->
+                            <template x-if="doc.cu_fields">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <template x-for="(value, key) in doc.cu_fields" :key="key">
+                                        <div class="bg-purple-50 rounded p-3">
+                                            <div class="text-xs font-mono text-purple-700 mb-1" x-text="key"></div>
+                                            <div class="text-sm text-gray-800" x-text="value || '(not extracted)'"></div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Traces -->
+                            <details x-show="doc.cu_trace || doc.search_trace" class="mt-3">
+                                <summary class="cursor-pointer text-sm font-medium text-blue-600 hover:text-blue-800">📡 View API Traces</summary>
+                                <div class="mt-2 space-y-2">
+                                    <template x-if="doc.cu_trace">
+                                        <div>
+                                            <div class="text-xs font-medium text-purple-700 mb-1">CU Trace</div>
+                                            <pre class="bg-gray-900 text-green-400 p-2 rounded text-xs overflow-auto max-h-40"><code x-text="JSON.stringify(doc.cu_trace, null, 2)"></code></pre>
+                                        </div>
+                                    </template>
+                                    <template x-if="doc.search_trace">
+                                        <div>
+                                            <div class="text-xs font-medium text-indigo-700 mb-1">Search Trace</div>
+                                            <pre class="bg-gray-900 text-green-400 p-2 rounded text-xs overflow-auto max-h-40"><code x-text="JSON.stringify(doc.search_trace, null, 2)"></code></pre>
+                                        </div>
+                                    </template>
+                                </div>
+                            </details>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Teaching point -->
+            <div class="bg-sky-50 border border-sky-200 rounded-lg p-4">
+                <h3 class="font-semibold text-sky-900 mb-2">💡 What to Notice</h3>
+                <ul class="text-sm text-sky-800 space-y-1 list-disc pl-5">
+                    <li><strong>CU dominates total time</strong> — GenAI extraction is 100-500x slower than Search indexing. PTU eliminates queueing delays.</li>
+                    <li><strong>Search indexing is near-instant</strong> — once CU produces the enriched fields, pushing to AI Search takes milliseconds.</li>
+                    <li><strong>Sequential = simple but slow</strong> — in production, SimpleL7Proxy enables parallel processing across multiple PTU units.</li>
+                    <li><strong>Each document gets its own traces</strong> — expand API traces to see the exact CU and Search calls per document.</li>
+                </ul>
+            </div>
+        </div>
+    </template>
+
+    <!-- Error state -->
+    <template x-if="batchResult?.error">
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <h3 class="font-semibold text-red-700 mb-2">❌ Batch Failed</h3>
+            <pre class="text-sm text-red-700 whitespace-pre-wrap" x-text="batchResult.error"></pre>
+        </div>
+    </template>
+</div>
+
+<!-- Behind the Scenes -->
+<details class="mt-8 mb-6 bg-slate-50 border border-slate-200 rounded-lg">
+    <summary class="cursor-pointer p-5 font-semibold text-slate-900 hover:text-slate-700">
+        🔧 Behind the Scenes — How This Works
+    </summary>
+    <div class="px-5 pb-5 space-y-4 text-sm">
+        <div>
+            <h4 class="font-semibold text-slate-700 mb-2">Azure Resources Required</h4>
+            <ul class="list-disc pl-6 space-y-1 text-gray-600">
+                <li><strong>AI Services (Foundry)</strong> — GPT-4.1 + text-embedding-3-large deployments for CU</li>
+                <li><strong>AI Search (Basic+)</strong> — semantic search with reranking</li>
+                <li><strong>SimpleL7Proxy (Container App)</strong> — routes between PTU and PAYG endpoints</li>
+                <li><strong>Managed Identity</strong> — RBAC for all services, no API keys</li>
+            </ul>
+        </div>
+        <div>
+            <h4 class="font-semibold text-slate-700 mb-2">Batch Pipeline Flow</h4>
+            <ol class="list-decimal pl-6 space-y-1 text-gray-600">
+                <li>Ensure AI Search index exists (create if needed)</li>
+                <li>For each document: read sample → CU enrichment (summary + key_topics) → build search document → push to index</li>
+                <li>Return per-document results with timing and API traces</li>
+            </ol>
+        </div>
+        <div>
+            <h4 class="font-semibold text-slate-700 mb-2">Production Scaling</h4>
+            <p class="text-gray-600">
+                This workshop demo processes documents sequentially. In production, you'd add:
+                Azure Storage Queue for document intake, parallel workers pulling from the queue,
+                SimpleL7Proxy routing CU calls through PTU capacity, and dead-letter handling for failures.
+            </p>
+        </div>
+    </div>
+</details>
+{% endblock %}

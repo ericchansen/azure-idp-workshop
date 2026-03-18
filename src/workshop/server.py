@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from workshop.config import settings
-from workshop.routers import ais, cu, di, documents, health
+from workshop.routers import ais, batch, cu, di, documents, health
 
 # Logging
 logging.basicConfig(level=getattr(logging, settings.log_level.upper(), logging.INFO))
@@ -40,6 +40,7 @@ app.include_router(documents.router)
 app.include_router(di.router)
 app.include_router(cu.router)
 app.include_router(ais.router)
+app.include_router(batch.router)
 
 
 # ── Page routes ──────────────────────────────────────────────────────────────
@@ -63,6 +64,11 @@ async def module_2(request: Request) -> HTMLResponse:
 @app.get("/module/3", response_class=HTMLResponse)
 async def module_3(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "module3.html")
+
+
+@app.get("/module/4", response_class=HTMLResponse)
+async def module_4(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "module4.html")
 
 
 @app.get("/guide", response_class=HTMLResponse)
