@@ -301,13 +301,7 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
     diDone: false, cuDone: false, startTime: null, elapsed: '0.0', timer: null,
     hasError(r) { return r?.error || r?.trace?.error },
     getError(r) { return r?.error || r?.trace?.error },
-    fields: [
-        { name: 'summary', type: 'string', description: 'A 2-3 sentence summary of the document' },
-        { name: 'key_parties', type: 'string', description: 'Names of all parties mentioned' },
-        { name: 'obligations', type: 'string', description: 'Key obligations or requirements' },
-        { name: 'risk_level', type: 'string', description: 'Overall risk level: low, medium, or high' },
-        { name: 'sentiment', type: 'string', description: 'Overall sentiment: positive, neutral, or negative' },
-    ],
+    fields: [],
     showAddField: false,
     newFieldName: '',
     newFieldType: 'string',
@@ -368,18 +362,18 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
         .catch(e => { this.cuResult = { error: e.message }; this.cuDone = true; this.checkDone(); });
     },
     checkDone() { if (this.diDone && this.cuDone) { this.loading = false; clearInterval(this.timer); } }
-}" x-cloak>
+}" x-init="switchFieldPreset('contract')" x-cloak>
 
     <!-- Document picker -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
         <h2 class="text-lg font-semibold mb-4">📄 Choose an Unstructured Document</h2>
         <div class="flex flex-wrap gap-3">
-            <button @click="selectedSample = 'contract.pdf'; switchFieldPreset('contract')"
+            <button @click="if (selectedSample !== 'contract.pdf') { selectedSample = 'contract.pdf'; switchFieldPreset('contract'); }"
                 :class="selectedSample === 'contract.pdf' ? 'ring-2 ring-purple-500 bg-purple-50' : 'bg-gray-100 hover:bg-gray-200'"
                 class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 📜 Contract (PDF)
             </button>
-            <button @click="selectedSample = 'purchase-order.pdf'; switchFieldPreset('purchase-order')"
+            <button @click="if (selectedSample !== 'purchase-order.pdf') { selectedSample = 'purchase-order.pdf'; switchFieldPreset('purchase-order'); }"
                 :class="selectedSample === 'purchase-order.pdf' ? 'ring-2 ring-purple-500 bg-purple-50' : 'bg-gray-100 hover:bg-gray-200'"
                 class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 🧾 Purchase Order (PDF)
@@ -552,15 +546,21 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
                                     <div class="text-xs text-gray-500 mb-1" x-text="'Table ' + (ti+1) + ': ' + (table.rowCount || '?') + ' rows × ' + (table.columnCount || '?') + ' cols'"></div>
                                     <div class="rendered-md" x-html="(() => {
                                         if (!table.cells) return '<em>No cell data</em>';
+                                        const d = document.createElement('div');
+                                        const esc = s => { d.textContent = s; return d.innerHTML; };
                                         const rows = table.rowCount || 0;
                                         const cols = table.columnCount || 0;
                                         let grid = Array.from({length: rows}, () => Array(cols).fill(''));
-                                        table.cells.forEach(c => { if (c.rowIndex < rows && c.columnIndex < cols) grid[c.rowIndex][c.columnIndex] = c.content || ''; });
+                                        const headerSet = new Set();
+                                        table.cells.forEach(c => {
+                                            if (c.rowIndex < rows && c.columnIndex < cols) grid[c.rowIndex][c.columnIndex] = c.content || '';
+                                            if (c.kind === 'columnHeader') headerSet.add(c.rowIndex + ':' + c.columnIndex);
+                                        });
                                         let html = '<table>';
                                         grid.forEach((row, ri) => {
                                             html += '<tr>' + row.map((cell, ci) => {
-                                                const isHeader = ri === 0 || (table.cells.find(c => c.rowIndex === ri && c.columnIndex === ci)?.kind === 'columnHeader');
-                                                return isHeader ? '<th>' + cell + '</th>' : '<td>' + cell + '</td>';
+                                                const isHeader = ri === 0 || headerSet.has(ri + ':' + ci);
+                                                return isHeader ? '<th>' + esc(cell) + '</th>' : '<td>' + esc(cell) + '</td>';
                                             }).join('') + '</tr>';
                                         });
                                         return html + '</table>';

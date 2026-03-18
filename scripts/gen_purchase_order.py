@@ -1,6 +1,6 @@
 """Generate purchase order PDF sample for Module 2 table extraction demo."""
 
-import os
+from pathlib import Path
 
 from fpdf import FPDF
 
@@ -105,7 +105,11 @@ pdf.set_font("Helvetica", "", 9)
 pdf.cell(95, 12, "James Wilson, IT Procurement Manager", ln=False)
 pdf.cell(95, 12, "Sarah Chen, VP of Infrastructure", ln=True)
 
-pdf.output("samples/purchase-order.pdf")
+REPO_ROOT = Path(__file__).resolve().parent.parent
+OUTPUT = REPO_ROOT / "samples" / "purchase-order.pdf"
+OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 
-size = os.path.getsize("samples/purchase-order.pdf")
+pdf.output(str(OUTPUT))
+
+size = OUTPUT.stat().st_size
 print(f"Created samples/purchase-order.pdf ({size} bytes)")

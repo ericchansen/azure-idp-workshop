@@ -377,15 +377,21 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
                                     <div class="text-xs text-gray-500 mb-1" x-text="'Table ' + (ti+1) + ': ' + (table.rowCount || '?') + ' rows × ' + (table.columnCount || '?') + ' cols'"></div>
                                     <div class="rendered-md" x-html="(() => {
                                         if (!table.cells) return '<em>No cell data</em>';
+                                        const d = document.createElement('div');
+                                        const esc = s => { d.textContent = s; return d.innerHTML; };
                                         const rows = table.rowCount || 0;
                                         const cols = table.columnCount || 0;
                                         let grid = Array.from({length: rows}, () => Array(cols).fill(''));
-                                        table.cells.forEach(c => { if (c.rowIndex < rows && c.columnIndex < cols) grid[c.rowIndex][c.columnIndex] = c.content || ''; });
+                                        const headerSet = new Set();
+                                        table.cells.forEach(c => {
+                                            if (c.rowIndex < rows && c.columnIndex < cols) grid[c.rowIndex][c.columnIndex] = c.content || '';
+                                            if (c.kind === 'columnHeader') headerSet.add(c.rowIndex + ':' + c.columnIndex);
+                                        });
                                         let html = '<table>';
                                         grid.forEach((row, ri) => {
                                             html += '<tr>' + row.map((cell, ci) => {
-                                                const isHeader = ri === 0 || (table.cells.find(c => c.rowIndex === ri && c.columnIndex === ci)?.kind === 'columnHeader');
-                                                return isHeader ? '<th>' + cell + '</th>' : '<td>' + cell + '</td>';
+                                                const isHeader = ri === 0 || headerSet.has(ri + ':' + ci);
+                                                return isHeader ? '<th>' + esc(cell) + '</th>' : '<td>' + esc(cell) + '</td>';
                                             }).join('') + '</tr>';
                                         });
                                         return html + '</table>';
