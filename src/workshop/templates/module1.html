@@ -331,10 +331,10 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
         <h2 class="text-lg font-semibold mb-3">👁️ Source Document</h2>
         <div class="border rounded-lg overflow-hidden bg-gray-100 flex justify-center" style="max-height: 400px;">
             <img x-show="selectedSample.endsWith('.png') || selectedSample.endsWith('.jpg')"
-                 :src="selectedSample ? '/api/documents/samples/' + selectedSample + '/raw' : ''"
+                 :src="selectedSample ? '/api/documents/samples/' + selectedSample + '/raw' : null"
                  class="max-h-96 object-contain" alt="Document preview" />
             <iframe x-show="selectedSample.endsWith('.pdf')"
-                    :src="selectedSample.endsWith('.pdf') ? '/api/documents/samples/' + selectedSample + '/raw' : ''"
+                    :src="selectedSample && selectedSample.endsWith('.pdf') ? '/api/documents/samples/' + selectedSample + '/raw' : null"
                     class="w-full" style="height: 400px;" title="PDF preview"></iframe>
         </div>
     </div>
