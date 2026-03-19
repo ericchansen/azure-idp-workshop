@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from workshop.routers.documents import read_sample
 from workshop.services import ai_search as ais_service
 from workshop.services import content_understanding as cu_service
+from workshop.services.cu_fields import extract_field_value
 
 router = APIRouter(prefix="/api/search", tags=["ai-search"])
 
@@ -125,7 +126,4 @@ async def index_stats() -> dict[str, Any]:
 
 def _extract_field(fields: dict[str, Any], name: str) -> str:
     """Extract a string value from CU fields response."""
-    field = fields.get(name, {})
-    if isinstance(field, dict):
-        return field.get("valueString") or field.get("value") or field.get("content") or ""
-    return str(field) if field else ""
+    return extract_field_value(fields, name)

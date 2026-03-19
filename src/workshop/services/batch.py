@@ -9,6 +9,7 @@ from typing import Any
 from workshop.routers.documents import read_sample
 from workshop.services import ai_search as ais_service
 from workshop.services import content_understanding as cu_service
+from workshop.services.cu_fields import extract_field_value
 
 # Default fields for batch enrichment
 BATCH_FIELDS = [
@@ -106,18 +107,12 @@ async def _process_single(sample: str, analyzer_id: str) -> dict[str, Any]:
     # Build search document
     doc_id = hashlib.md5(f"batch_{sample}".encode()).hexdigest()
 
-    def _extract(fields: dict[str, Any], name: str) -> str:
-        field = fields.get(name, {})
-        if isinstance(field, dict):
-            return field.get("valueString") or field.get("value") or field.get("content") or ""
-        return str(field) if field else ""
-
     search_doc = {
         "id": doc_id,
         "title": sample,
         "content": cu_result.get("result", {}).get("content", ""),
-        "summary": _extract(cu_fields, "summary"),
-        "key_topics": _extract(cu_fields, "key_topics"),
+        "summary": extract_field_value(cu_fields, "summary"),
+        "key_topics": extract_field_value(cu_fields, "key_topics"),
         "source_doc": sample,
         "indexed_at": datetime.now(tz=UTC).isoformat(),
     }
@@ -129,8 +124,10 @@ async def _process_single(sample: str, analyzer_id: str) -> dict[str, Any]:
         return {
             "sample": sample,
             "error": f"Search indexing failed: {e}",
-            "cu_fields": {f["name"]: _extract(cu_fields, f["name"]) for f in BATCH_FIELDS},
-            "cu_duration_ms": cu_duration,
+            "cu_fields": {
+                f["name"]: extract_field_value(cu_fields, f["name"]) for f in BATCH_FIELDS
+            },
+            "cu_duration_ms": round(cu_duration, 2),
             "cu_trace": cu_result.get("trace"),
         }
 
@@ -144,7 +141,9 @@ async def _process_single(sample: str, analyzer_id: str) -> dict[str, Any]:
             "error": index_result.get("trace", {}).get(
                 "error", f"Search returned HTTP {search_trace_status}"
             ),
-            "cu_fields": {f["name"]: _extract(cu_fields, f["name"]) for f in BATCH_FIELDS},
+            "cu_fields": {
+                f["name"]: extract_field_value(cu_fields, f["name"]) for f in BATCH_FIELDS
+            },
             "cu_duration_ms": round(cu_duration, 2),
             "search_duration_ms": round(search_duration, 2),
             "cu_trace": cu_result.get("trace"),
@@ -154,7 +153,7 @@ async def _process_single(sample: str, analyzer_id: str) -> dict[str, Any]:
     return {
         "sample": sample,
         "document_id": doc_id,
-        "cu_fields": {f["name"]: _extract(cu_fields, f["name"]) for f in BATCH_FIELDS},
+        "cu_fields": {f["name"]: extract_field_value(cu_fields, f["name"]) for f in BATCH_FIELDS},
         "cu_duration_ms": round(cu_duration, 2),
         "search_duration_ms": round(search_duration, 2),
         "cu_trace": cu_result.get("trace"),
