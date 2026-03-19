@@ -422,7 +422,7 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
                         <thead><tr><th class="text-left">Concern</th><th class="text-left">This Workshop</th><th class="text-left">Production</th></tr></thead>
                         <tbody>
                             <tr><td><strong>Authentication</strong></td><td>RBAC via Managed Identity</td><td>RBAC via Managed Identity (same ✅)</td></tr>
-                            <tr><td><strong>API keys</strong></td><td>Disabled (RBAC-only)</td><td>Disabled — rotate &amp; delete any legacy keys</td></tr>
+                            <tr><td><strong>API keys</strong></td><td>App uses RBAC; service API keys still enabled unless <code class="bg-gray-100 px-1 rounded">disableLocalAuth: true</code></td><td>Disabled — rotate &amp; delete any legacy keys</td></tr>
                             <tr><td><strong>Network</strong></td><td>Public endpoint</td><td>Private endpoint + VNet integration</td></tr>
                             <tr><td><strong>Data exfiltration</strong></td><td>Not configured</td><td>NSG rules + Private Link scoping</td></tr>
                             <tr><td><strong>Encryption</strong></td><td>Service-managed keys</td><td>Customer-managed keys (CMK) via Key Vault</td></tr>
@@ -514,7 +514,7 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
                 <p class="text-sm text-gray-700 mb-2">Prevent indexed data from being copied to unauthorized destinations.</p>
                 <ul class="text-sm text-gray-700 space-y-1 list-disc list-inside">
                     <li><strong>Private Link scoping:</strong> Limit which resources can access the search service via approved private endpoints</li>
-                    <li><strong>NSG rules:</strong> Restrict outbound traffic from subnets hosting your search service</li>
+                    <li><strong>NSG rules:</strong> Restrict outbound traffic from application subnets and the private endpoint subnet to only required Azure AI Search endpoints</li>
                     <li><strong>Azure Policy:</strong> Enforce <code class="bg-gray-100 px-1 rounded">privateEndpointConnections</code> and deny public network access at the subscription level</li>
                     <li><strong>Managed Identity restrictions:</strong> Grant only the minimum RBAC roles needed (avoid Owner/Contributor on the search resource)</li>
                 </ul>
@@ -588,6 +588,33 @@ resource searchPe 'Microsoft.Network/privateEndpoints@2023-11-01' = {
   }
 }
 
+// Private DNS zone for private endpoint name resolution
+resource searchDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
+  name: 'privatelink.search.windows.net'
+  location: 'global'
+}
+
+resource searchDnsZoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2020-06-01' = {
+  parent: searchDnsZone
+  name: '${searchServiceName}-dns-link'
+  location: 'global'
+  properties: {
+    virtualNetwork: { id: virtualNetworkId }
+    registrationEnabled: false
+  }
+}
+
+resource searchDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-11-01' = {
+  parent: searchPe
+  name: 'search-dns-zone-group'
+  properties: {
+    privateDnsZoneConfigs: [{
+      name: 'search-dns-config'
+      properties: { privateDnsZoneId: searchDnsZone.id }
+    }]
+  }
+}
+
 // RBAC: Grant the Container App access to search data
 resource searchDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: searchService
@@ -596,6 +623,20 @@ resource searchDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-
     roleDefinitionId: subscriptionResourceId(
       'Microsoft.Authorization/roleDefinitions',
       '8ebe5a00-799e-43f5-93ac-243d3dce84a7' // Search Index Data Contributor
+    )
+    principalId: containerApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// RBAC: Grant the Container App permissions to manage index schemas
+resource searchServiceContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: searchService
+  name: guid(searchService.id, containerApp.id, 'search-service-contributor')
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      '7ca78c08-252a-4474-88e0-6f84bd1e5c58' // Search Service Contributor
     )
     principalId: containerApp.identity.principalId
     principalType: 'ServicePrincipal'
