@@ -406,6 +406,289 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
         </ul>
     </div>
 
+    <!-- Security Best Practices -->
+    <details class="mt-6 bg-amber-50 border border-amber-200 rounded-lg">
+        <summary class="cursor-pointer p-5 font-semibold text-amber-900 hover:text-amber-700">
+            🔐 Security Best Practices — Securing AI Search in Production
+        </summary>
+        <div class="px-5 pb-5 space-y-6">
+
+            <!-- Workshop vs Production comparison -->
+            <div class="bg-white border border-amber-200 rounded-lg p-4">
+                <h4 class="font-semibold text-amber-900 mb-3">🏠 Workshop vs. Production</h4>
+                <p class="text-sm text-gray-700 mb-3">This workshop uses a simplified setup to focus on functionality. Production deployments need additional layers.</p>
+                <div class="overflow-auto">
+                    <table class="rendered-md text-sm w-full">
+                        <thead><tr><th class="text-left">Concern</th><th class="text-left">This Workshop</th><th class="text-left">Production</th></tr></thead>
+                        <tbody>
+                            <tr><td><strong>Authentication</strong></td><td>RBAC via Managed Identity</td><td>RBAC via Managed Identity (same ✅)</td></tr>
+                            <tr><td><strong>API keys</strong></td><td>Disabled (RBAC-only)</td><td>Disabled — rotate &amp; delete any legacy keys</td></tr>
+                            <tr><td><strong>Network</strong></td><td>Public endpoint</td><td>Private endpoint + VNet integration</td></tr>
+                            <tr><td><strong>Data exfiltration</strong></td><td>Not configured</td><td>NSG rules + Private Link scoping</td></tr>
+                            <tr><td><strong>Encryption</strong></td><td>Service-managed keys</td><td>Customer-managed keys (CMK) via Key Vault</td></tr>
+                            <tr><td><strong>Audit logging</strong></td><td>Application-level traces</td><td>Azure Monitor diagnostic logs + Log Analytics</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- RBAC vs API Keys -->
+            <div>
+                <h4 class="font-semibold text-amber-800 mb-2">🔑 RBAC vs. API Keys</h4>
+                <p class="text-sm text-gray-700 mb-3">Azure AI Search supports two authentication modes. RBAC is strongly recommended for production.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <h5 class="text-sm font-semibold text-green-800 mb-1">✅ RBAC (Recommended)</h5>
+                        <ul class="text-xs text-green-700 space-y-1 list-disc list-inside">
+                            <li>No secrets to manage, rotate, or leak</li>
+                            <li>Granular per-identity permissions</li>
+                            <li>Audit trail via Entra ID logs</li>
+                            <li><strong>Search Index Data Contributor</strong> — read/write index data</li>
+                            <li><strong>Search Service Contributor</strong> — manage index schema</li>
+                        </ul>
+                    </div>
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                        <h5 class="text-sm font-semibold text-red-800 mb-1">⚠️ API Keys (Legacy)</h5>
+                        <ul class="text-xs text-red-700 space-y-1 list-disc list-inside">
+                            <li>Shared secret — anyone with the key gets full access</li>
+                            <li>No per-user audit trail</li>
+                            <li>Key rotation requires app redeployment</li>
+                            <li>Admin key = full control (dangerous if leaked)</li>
+                            <li>Query key = read-only (still a shared secret)</li>
+                        </ul>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">💡 Disable API key auth entirely with <code class="bg-gray-100 px-1 rounded">disableLocalAuth: true</code> in your Bicep/Terraform.</p>
+            </div>
+
+            <!-- Managed Identity -->
+            <div>
+                <h4 class="font-semibold text-amber-800 mb-2">🪪 Managed Identity</h4>
+                <p class="text-sm text-gray-700 mb-2">Managed identities eliminate the need for credentials in code or config. Azure handles token issuance and rotation.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-white border border-gray-200 rounded-lg p-3">
+                        <h5 class="text-sm font-semibold text-gray-800 mb-1">System-Assigned</h5>
+                        <ul class="text-xs text-gray-600 space-y-1 list-disc list-inside">
+                            <li>One identity per resource (1:1)</li>
+                            <li>Lifecycle tied to the resource</li>
+                            <li>Simpler — good for single-purpose apps</li>
+                            <li>Used by this workshop's Container App</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-lg p-3">
+                        <h5 class="text-sm font-semibold text-gray-800 mb-1">User-Assigned</h5>
+                        <ul class="text-xs text-gray-600 space-y-1 list-disc list-inside">
+                            <li>Shared across multiple resources (1:N)</li>
+                            <li>Independent lifecycle — survives redeployments</li>
+                            <li>Better for microservices sharing the same permissions</li>
+                            <li>Pre-create and assign RBAC before app deployment</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Isolation -->
+            <div>
+                <h4 class="font-semibold text-amber-800 mb-2">🌐 Network Isolation</h4>
+                <p class="text-sm text-gray-700 mb-2">In production, AI Search should never be exposed to the public internet. Use private endpoints to restrict access to your VNet.</p>
+                <div class="bg-white border border-gray-200 rounded-lg p-4">
+                    <div class="flex flex-wrap items-center justify-center gap-2 text-xs font-medium mb-3">
+                        <div class="bg-blue-100 border border-blue-300 rounded px-3 py-1.5">Container App</div>
+                        <div class="text-gray-400">→</div>
+                        <div class="bg-purple-100 border border-purple-300 rounded px-3 py-1.5">Private Endpoint</div>
+                        <div class="text-gray-400">→</div>
+                        <div class="bg-indigo-100 border border-indigo-300 rounded px-3 py-1.5">AI Search (no public IP)</div>
+                    </div>
+                    <ul class="text-xs text-gray-600 space-y-1 list-disc list-inside">
+                        <li><strong>Private endpoint:</strong> Creates a NIC in your VNet with a private IP for the search service</li>
+                        <li><strong>DNS integration:</strong> Use Azure Private DNS Zone (<code class="bg-gray-100 px-1 rounded">privatelink.search.windows.net</code>) for name resolution</li>
+                        <li><strong>Public access:</strong> Set <code class="bg-gray-100 px-1 rounded">publicNetworkAccess: 'Disabled'</code> after private endpoint is active</li>
+                        <li><strong>VNet integration:</strong> Container Apps Environment must be injected into the same VNet (or peered)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Data Exfiltration Protection -->
+            <div>
+                <h4 class="font-semibold text-amber-800 mb-2">🛡️ Data Exfiltration Protection</h4>
+                <p class="text-sm text-gray-700 mb-2">Prevent indexed data from being copied to unauthorized destinations.</p>
+                <ul class="text-sm text-gray-700 space-y-1 list-disc list-inside">
+                    <li><strong>Private Link scoping:</strong> Limit which resources can access the search service via approved private endpoints</li>
+                    <li><strong>NSG rules:</strong> Restrict outbound traffic from subnets hosting your search service</li>
+                    <li><strong>Azure Policy:</strong> Enforce <code class="bg-gray-100 px-1 rounded">privateEndpointConnections</code> and deny public network access at the subscription level</li>
+                    <li><strong>Managed Identity restrictions:</strong> Grant only the minimum RBAC roles needed (avoid Owner/Contributor on the search resource)</li>
+                </ul>
+            </div>
+
+            <!-- Encryption at Rest -->
+            <div>
+                <h4 class="font-semibold text-amber-800 mb-2">🔒 Encryption at Rest</h4>
+                <p class="text-sm text-gray-700 mb-2">All data in Azure AI Search is encrypted at rest by default. For compliance-sensitive workloads, use customer-managed keys.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-white border border-gray-200 rounded-lg p-3">
+                        <h5 class="text-sm font-semibold text-gray-800 mb-1">Service-Managed (Default)</h5>
+                        <ul class="text-xs text-gray-600 space-y-1 list-disc list-inside">
+                            <li>Microsoft manages encryption keys</li>
+                            <li>AES-256 encryption</li>
+                            <li>Zero configuration — always on</li>
+                            <li>Sufficient for most workloads</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-lg p-3">
+                        <h5 class="text-sm font-semibold text-gray-800 mb-1">Customer-Managed Keys (CMK)</h5>
+                        <ul class="text-xs text-gray-600 space-y-1 list-disc list-inside">
+                            <li>You control the key in Azure Key Vault</li>
+                            <li>Required for some compliance standards (FedRAMP High, HIPAA)</li>
+                            <li>Enables "double encryption" — your key + Microsoft's</li>
+                            <li>Key rotation without re-indexing</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IaC for Secure Deployment -->
+            <div>
+                <h4 class="font-semibold text-amber-800 mb-3">🏗️ Secure Deployment — Infrastructure as Code</h4>
+                <p class="text-sm text-gray-700 mb-3">Production-ready IaC that combines RBAC, private endpoints, disabled API keys, and diagnostic logging.</p>
+                <div class="border rounded-lg overflow-hidden" x-data="{secIac: 'bicep'}">
+                    <div class="flex bg-gray-100 border-b">
+                        <button @click="secIac='bicep'" :class="secIac==='bicep' ? 'bg-white font-medium border-b-2 border-blue-500' : ''" class="px-4 py-2 text-sm">Bicep</button>
+                        <button @click="secIac='terraform'" :class="secIac==='terraform' ? 'bg-white font-medium border-b-2 border-blue-500' : ''" class="px-4 py-2 text-sm">Terraform</button>
+                    </div>
+                    <div x-show="secIac==='bicep'" class="p-4">
+                        <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-bicep">// AI Search — RBAC-only, no public access, diagnostic logging
+resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' = {
+  name: searchServiceName
+  location: location
+  sku: { name: 'basic' }
+  identity: { type: 'SystemAssigned' }
+  properties: {
+    publicNetworkAccess: 'Disabled'
+    disableLocalAuth: true          // No API keys
+    semanticSearch: 'standard'
+    authOptions: {
+      aadOrApiKey: { aadAuthFailureMode: 'http401WithBearerChallenge' }
+    }
+  }
+}
+
+// Private endpoint for AI Search
+resource searchPe 'Microsoft.Network/privateEndpoints@2023-11-01' = {
+  name: '${searchServiceName}-pe'
+  location: location
+  properties: {
+    subnet: { id: subnetId }
+    privateLinkServiceConnections: [{
+      name: '${searchServiceName}-plsc'
+      properties: {
+        privateLinkServiceId: searchService.id
+        groupIds: [ 'searchService' ]
+      }
+    }]
+  }
+}
+
+// RBAC: Grant the Container App access to search data
+resource searchDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: searchService
+  name: guid(searchService.id, containerApp.id, searchIndexDataContributorId)
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      '8ebe5a00-799e-43f5-93ac-243d3dce84a7' // Search Index Data Contributor
+    )
+    principalId: containerApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Diagnostic logging to Log Analytics
+resource searchDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  name: 'search-diagnostics'
+  scope: searchService
+  properties: {
+    workspaceId: logAnalyticsWorkspace.id
+    logs: [
+      { categoryGroup: 'allLogs', enabled: true }
+    ]
+    metrics: [
+      { category: 'AllMetrics', enabled: true }
+    ]
+  }
+}</code></pre>
+                    </div>
+                    <div x-show="secIac==='terraform'" class="p-4">
+                        <pre class="bg-gray-900 text-green-400 p-3 rounded text-xs overflow-auto"><code class="language-hcl"># AI Search — RBAC-only, no public access
+resource "azurerm_search_service" "search" {
+  name                          = var.search_service_name
+  resource_group_name           = azurerm_resource_group.rg.name
+  location                      = azurerm_resource_group.rg.location
+  sku                           = "basic"
+  semantic_search_sku           = "standard"
+  public_network_access_enabled = false
+  local_authentication_enabled  = false  # No API keys
+
+  identity {
+    type = "SystemAssigned"
+  }
+}
+
+# Private endpoint for AI Search
+resource "azurerm_private_endpoint" "search_pe" {
+  name                = "${var.search_service_name}-pe"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  subnet_id           = azurerm_subnet.private.id
+
+  private_service_connection {
+    name                           = "${var.search_service_name}-plsc"
+    private_connection_resource_id = azurerm_search_service.search.id
+    subresource_names              = ["searchService"]
+    is_manual_connection           = false
+  }
+
+  private_dns_zone_group {
+    name                 = "search-dns"
+    private_dns_zone_ids = [azurerm_private_dns_zone.search.id]
+  }
+}
+
+# Private DNS zone for search
+resource "azurerm_private_dns_zone" "search" {
+  name                = "privatelink.search.windows.net"
+  resource_group_name = azurerm_resource_group.rg.name
+}
+
+# RBAC: Search Index Data Contributor
+resource "azurerm_role_assignment" "search_data" {
+  scope                = azurerm_search_service.search.id
+  role_definition_name = "Search Index Data Contributor"
+  principal_id         = azurerm_container_app.app.identity[0].principal_id
+}
+
+# RBAC: Search Service Contributor (index schema management)
+resource "azurerm_role_assignment" "search_service" {
+  scope                = azurerm_search_service.search.id
+  role_definition_name = "Search Service Contributor"
+  principal_id         = azurerm_container_app.app.identity[0].principal_id
+}
+
+# Diagnostic logging
+resource "azurerm_monitor_diagnostic_setting" "search_diag" {
+  name                       = "search-diagnostics"
+  target_resource_id         = azurerm_search_service.search.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.logs.id
+
+  enabled_log { category_group = "allLogs" }
+  metric      { category = "AllMetrics" }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </details>
+
     <!-- Behind the Scenes -->
     <details class="mt-6 bg-indigo-50 border border-indigo-200 rounded-lg">
         <summary class="cursor-pointer p-5 font-semibold text-indigo-900 hover:text-indigo-700">
@@ -423,26 +706,17 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
                     </ul>
                 </div>
                 <div>
-                    <h4 class="font-semibold text-indigo-800 mb-2">🔐 Security Patterns</h4>
-                    <ul class="text-sm space-y-1 list-disc list-inside text-gray-700">
-                        <li><strong>Managed Identity</strong> — no keys in code or config</li>
-                        <li><strong>RBAC roles:</strong> Search Index Data Contributor + Search Service Contributor</li>
-                        <li><strong>Network isolation:</strong> Private endpoints + VNet integration in production</li>
-                        <li>Data encryption at rest (service-managed keys)</li>
-                    </ul>
-                </div>
-            </div>
-            <div>
-                <h4 class="font-semibold text-indigo-800 mb-2">💰 Pricing</h4>
-                <div class="overflow-auto">
-                    <table class="rendered-md text-sm">
-                        <thead><tr><th>Resource</th><th>Tier</th><th>Cost</th><th>Notes</th></tr></thead>
-                        <tbody>
-                            <tr><td>AI Search</td><td>Basic</td><td>~$75/mo</td><td>Semantic search included; 1 replica, 1 partition</td></tr>
-                            <tr><td>CU extraction</td><td>S0</td><td>~$0.05/page</td><td>GPT-4.1 token usage on top</td></tr>
-                            <tr><td>Search queries</td><td>-</td><td>Free</td><td>Included in Basic tier</td></tr>
-                        </tbody>
-                    </table>
+                    <h4 class="font-semibold text-indigo-800 mb-2">💰 Pricing</h4>
+                    <div class="overflow-auto">
+                        <table class="rendered-md text-sm">
+                            <thead><tr><th>Resource</th><th>Tier</th><th>Cost</th><th>Notes</th></tr></thead>
+                            <tbody>
+                                <tr><td>AI Search</td><td>Basic</td><td>~$75/mo</td><td>Semantic search included; 1 replica, 1 partition</td></tr>
+                                <tr><td>CU extraction</td><td>S0</td><td>~$0.05/page</td><td>GPT-4.1 token usage on top</td></tr>
+                                <tr><td>Search queries</td><td>-</td><td>Free</td><td>Included in Basic tier</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
