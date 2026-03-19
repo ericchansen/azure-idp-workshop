@@ -76,7 +76,7 @@ async def index_document(request: IndexRequest) -> dict[str, Any]:
     )
 
     # Build search document from CU results
-    doc_id = hashlib.md5(f"{filename}_{datetime.now(tz=UTC).isoformat()}".encode()).hexdigest()
+    doc_id = ais_service.build_document_id(filename)
     fields_dict = cu_result.get("result", {}).get("fields", {})
 
     search_doc = {

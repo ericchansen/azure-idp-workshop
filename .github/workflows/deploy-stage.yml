@@ -194,7 +194,7 @@ jobs:
               CU_COMPLETION_DEPLOYMENT=gpt-4.1 \
               CU_EMBEDDING_DEPLOYMENT=text-embedding-3-large \
               AIS_ENDPOINT=${{ steps.runtime.outputs.ais_endpoint }} \
-              AIS_INDEX_NAME=workshop-documents \
+              AIS_INDEX_NAME=workshop-documents-pr-${PR_NUM} \
             --output none
 
           # Ensure production revision keeps 100% traffic

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "npx playwright test --grep-invert Smoke",
-    "test:smoke": "npx playwright test --grep Smoke",
+    "test:smoke": "node scripts/require-smoke-base-url.js && npx playwright test --grep Smoke",
     "test:e2e": "npx playwright test",
     "test:all": "npx playwright test"
   },
