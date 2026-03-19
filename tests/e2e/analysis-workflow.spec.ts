@@ -272,6 +272,47 @@ test.describe("Module 1 — Analysis Workflow", () => {
     // API trace toggle should exist
     await expect(page.getByText("API Trace").first()).toBeVisible();
   });
+
+  test("variation samples highlight the layout fallback path", async ({
+    page, consoleErrors,
+  }) => {
+    await page.route("**/api/di/layout*", (route) =>
+      mockRoute(route, mockDILayoutResult)
+    );
+    await page.route("**/api/cu/layout*", (route) =>
+      mockRoute(route, mockCULayoutResult)
+    );
+    await page.route("**/api/di/prebuilt/prebuilt-layout*", (route) =>
+      mockRoute(route, {
+        result: {
+          content: "Structured purchase order",
+          documents: [],
+        },
+        trace: {
+          url: "https://test.cognitiveservices.azure.com/documentintelligence/documentModels/prebuilt-layout:analyze",
+          method: "POST",
+          response_status: 200,
+          duration_ms: 1111,
+        },
+      })
+    );
+
+    await page.goto("/module/1");
+    await expect(page.getByRole("button", { name: /Purchase Order A/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Vendor Intake B/i })).toBeVisible();
+
+    await page.getByRole("button", { name: /Purchase Order B/i }).click();
+    await expect(page.getByText("Sample focus")).toContainText("Purchase Order B");
+
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
+
+    await expect(
+      page.getByText("DI Layout Fallback - Normalize the Form")
+    ).toBeVisible();
+    await expect(
+      page.getByText("No typed fields is the expected outcome here.")
+    ).toBeVisible();
+  });
 });
 
 // ============================================================

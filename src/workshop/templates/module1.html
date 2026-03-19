@@ -5,8 +5,9 @@
 <div class="mb-8">
     <h1 class="text-3xl font-bold mb-2">Module 1: Structured Extraction — When DI Wins</h1>
     <p class="text-gray-600 text-lg">
-        DI excels at forms with predefined fields. Compare extraction quality, confidence scoring,
-        and cost — DI is faster, cheaper ($0.01/page vs $0.05/page CU custom), and deterministic.
+        DI excels at forms with predefined fields and predictable variations. Compare extraction quality,
+        confidence scoring, and cost - DI is faster, cheaper ($0.01/page vs $0.05/page CU custom),
+        and deterministic.
     </p>
 </div>
 
@@ -60,7 +61,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div class="font-semibold text-blue-800 mb-1">🔵 Document Intelligence (DI)</div>
-                    <p class="text-sm text-gray-700">Microsoft's battle-tested OCR + layout engine. Deterministic results, fast, cheap ($0.01/page). Built for high-volume, structured document processing — invoices, receipts, W-2s.</p>
+                    <p class="text-sm text-gray-700">Microsoft's battle-tested OCR + layout engine. Deterministic results, fast, cheap ($0.01/page). Built for high-volume, structured document processing - invoices, receipts, onboarding packets, and other fixed forms.</p>
                 </div>
                 <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
                     <div class="font-semibold text-purple-800 mb-1">🟣 Content Understanding (CU)</div>
@@ -75,7 +76,7 @@
             <ul class="text-sm space-y-1 list-disc list-inside text-gray-700">
                 <li><strong>Invoice processing pipelines</strong> — DI's prebuilt-invoice extracts fields + line items automatically</li>
                 <li><strong>Receipt scanning</strong> — DI's prebuilt-receipt handles photos of receipts with high accuracy</li>
-                <li><strong>Form digitization</strong> — DI excels at forms with fixed fields (tax forms, applications, surveys)</li>
+                <li><strong>Form digitization</strong> — DI excels at forms with fixed fields, even when labels drift between versions (tax forms, onboarding packets, applications)</li>
                 <li><strong>High-volume OCR</strong> — DI processes thousands of pages/minute at $0.01/page with deterministic results</li>
             </ul>
         </div>
@@ -212,19 +213,109 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
 </details>
 
 <div x-data="{
+    samples: [
+        {
+            name: 'invoice.pdf',
+            label: 'Invoice',
+            emoji: '📄',
+            format: 'PDF',
+            badge: 'Prebuilt model',
+            note: 'Typed invoice fields + line items',
+            lesson: 'Known schemas are the easiest DI win. You get typed fields, table structure, and confidence scores without defining your own schema.',
+            comparisonHint: 'Use this as the control sample before moving to the purchase order and onboarding variations.',
+            prebuiltModel: 'prebuilt-invoice',
+            prebuiltLabel: 'Invoice model'
+        },
+        {
+            name: 'receipt.png',
+            label: 'Receipt',
+            emoji: '🧾',
+            format: 'PNG',
+            badge: 'Prebuilt model',
+            note: 'Receipt-specific merchant, total, and date fields',
+            lesson: 'Receipts show how DI handles noisy images while still staying deterministic and cost-efficient.',
+            comparisonHint: 'Notice how the dedicated receipt model behaves differently from the layout-only form samples.',
+            prebuiltModel: 'prebuilt-receipt',
+            prebuiltLabel: 'Receipt model'
+        },
+        {
+            name: 'purchase-order.pdf',
+            label: 'Purchase Order A',
+            emoji: '📦',
+            format: 'PDF',
+            badge: 'Variation pair',
+            note: 'Baseline procurement form',
+            lesson: 'This is the baseline purchase-order layout. Compare it with Purchase Order B to see the same business fields presented with different labels and section order.',
+            comparisonHint: 'Watch for Requested By, Ship To, and terms data to move around while the business meaning stays stable.',
+            prebuiltModel: 'prebuilt-layout',
+            prebuiltLabel: 'Layout fallback'
+        },
+        {
+            name: 'purchase-order-v2.pdf',
+            label: 'Purchase Order B',
+            emoji: '📦',
+            format: 'PDF',
+            badge: 'Variation pair',
+            note: 'Alternate labels and section order',
+            lesson: 'Same purchasing workflow, different layout. This is the kind of controlled drift where layout extraction plus a normalization layer usually beats a custom GenAI workflow.',
+            comparisonHint: 'Compare Prepared For vs Requested By, Deliver To vs Ship To, and Authorization ID vs PO Number.',
+            prebuiltModel: 'prebuilt-layout',
+            prebuiltLabel: 'Layout fallback'
+        },
+        {
+            name: 'vendor-intake-v1.pdf',
+            label: 'Vendor Intake A',
+            emoji: '🗂️',
+            format: 'PDF',
+            badge: 'Variation pair',
+            note: 'Baseline supplier onboarding form',
+            lesson: 'This version uses straightforward finance labels like Tax ID and Payment Terms. It is a good candidate for deterministic field mapping after DI layout extraction.',
+            comparisonHint: 'Use this as the canonical schema before comparing it with the renamed B version.',
+            prebuiltModel: 'prebuilt-layout',
+            prebuiltLabel: 'Layout fallback'
+        },
+        {
+            name: 'vendor-intake-v2.pdf',
+            label: 'Vendor Intake B',
+            emoji: '🗂️',
+            format: 'PDF',
+            badge: 'Variation pair',
+            note: 'Renamed fields for the same supplier data',
+            lesson: 'This onboarding packet keeps the same business entities but renames labels such as Tax Number, AP Email, and Remittance Terms.',
+            comparisonHint: 'This is where teams standardize alternate labels into one canonical supplier schema.',
+            prebuiltModel: 'prebuilt-layout',
+            prebuiltLabel: 'Layout fallback'
+        },
+        {
+            name: 'inspection-checklist.pdf',
+            label: 'Inspection Checklist',
+            emoji: '✅',
+            format: 'PDF',
+            badge: 'Structured table',
+            note: 'Repeated row and status pattern',
+            lesson: 'Checklists are another DI sweet spot: repeated rows, stable columns, and minimal semantic ambiguity.',
+            comparisonHint: 'Focus on the row and column structure in the layout output rather than prebuilt field extraction.',
+            prebuiltModel: 'prebuilt-layout',
+            prebuiltLabel: 'Layout fallback'
+        }
+    ],
     diResult: null, cuResult: null, prebuiltResult: null,
     loading: false, selectedSample: '',
     diDone: false, cuDone: false, prebuiltDone: false,
     startTime: null, elapsed: '0.0', timer: null,
     hasError(r) { return r?.error || r?.trace?.error },
     getError(r) { return r?.error || r?.trace?.error },
+    get selectedDoc() {
+        return this.samples.find((sample) => sample.name === this.selectedSample) || null;
+    },
     get prebuiltModel() {
-        const map = { 'receipt.png': 'prebuilt-receipt', 'invoice.pdf': 'prebuilt-invoice' };
-        return map[this.selectedSample] || 'prebuilt-layout';
+        return this.selectedDoc?.prebuiltModel || 'prebuilt-layout';
     },
     get prebuiltLabel() {
-        const map = { 'receipt.png': 'Receipt', 'invoice.pdf': 'Invoice' };
-        return map[this.selectedSample] || 'Document';
+        return this.selectedDoc?.prebuiltLabel || 'Layout fallback';
+    },
+    get hasNativePrebuiltModel() {
+        return this.prebuiltModel !== 'prebuilt-layout';
     },
     startAnalysis() {
         if (!this.selectedSample) return;
@@ -274,17 +365,24 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
     <!-- Document picker -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
         <h2 class="text-lg font-semibold mb-4">📄 Choose a Document</h2>
-        <div class="flex flex-wrap gap-3">
-            <button @click="selectedSample = 'invoice.pdf'"
-                :class="selectedSample === 'invoice.pdf' ? 'ring-2 ring-blue-500 bg-blue-50' : 'bg-gray-100 hover:bg-gray-200'"
-                class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
-                📄 Invoice (PDF)
-            </button>
-            <button @click="selectedSample = 'receipt.png'"
-                :class="selectedSample === 'receipt.png' ? 'ring-2 ring-blue-500 bg-blue-50' : 'bg-gray-100 hover:bg-gray-200'"
-                class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
-                🧾 Receipt (PNG)
-            </button>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            <template x-for="sample in samples" :key="sample.name">
+                <button @click="selectedSample = sample.name"
+                    :class="selectedSample === sample.name ? 'ring-2 ring-blue-500 bg-blue-50 border-blue-300' : 'bg-gray-50 hover:bg-gray-100 border-gray-200'"
+                    class="border rounded-xl px-4 py-3 text-left transition-all">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="text-sm font-semibold text-gray-900">
+                                <span x-text="sample.emoji"></span>
+                                <span x-text="sample.label"></span>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1" x-text="sample.format + ' - ' + sample.note"></div>
+                        </div>
+                        <span class="text-[11px] font-medium px-2 py-0.5 rounded-md whitespace-nowrap bg-white border border-gray-200 text-gray-600 shrink-0"
+                              x-text="sample.badge"></span>
+                    </div>
+                </button>
+            </template>
         </div>
         <!-- What to look for -->
         <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
@@ -293,10 +391,20 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
                 <li><strong>Speed</strong> — Watch the progress indicators. DI is typically faster on structured documents.</li>
                 <li><strong>Tables</strong> — DI excels at detecting and structuring table data with row/column awareness.</li>
                 <li><strong>Prebuilt fields</strong> — DI's prebuilt models extract specific fields (merchant, total, date) with confidence scores — no GenAI needed.</li>
+                <li><strong>Variation handling</strong> — Compare Purchase Order A/B or Vendor Intake A/B. The labels change, but the business entities stay the same.</li>
                 <li><strong>Content format</strong> — DI returns raw text + structure. CU returns markdown-formatted content.</li>
                 <li><strong>API trace</strong> — Expand the trace to see exact request/response details and timing.</li>
             </ul>
         </div>
+        <template x-if="selectedDoc">
+            <div class="bg-sky-50 border border-sky-200 rounded-lg p-4 mt-4">
+                <h3 class="font-semibold text-sky-900 text-sm mb-1">
+                    🧪 Sample focus — <span x-text="selectedDoc.label"></span>
+                </h3>
+                <p class="text-xs text-sky-800 leading-relaxed" x-text="selectedDoc.lesson"></p>
+                <p class="text-xs text-sky-700 mt-2" x-text="selectedDoc.comparisonHint"></p>
+            </div>
+        </template>
         <button @click="startAnalysis()" :disabled="!selectedSample || loading"
             class="mt-4 px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
             <span x-show="!loading">▶️ Run Analysis — Compare DI vs CU</span>
@@ -328,7 +436,11 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
 
     <!-- Document Preview -->
     <div x-show="selectedSample" x-transition class="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 class="text-lg font-semibold mb-3">👁️ Source Document</h2>
+        <h2 class="text-lg font-semibold mb-2">
+            👁️ Source Document
+            <span x-show="selectedDoc" class="text-base font-normal text-gray-500" x-text="selectedDoc ? '- ' + selectedDoc.label : ''"></span>
+        </h2>
+        <p x-show="selectedDoc" class="text-sm text-gray-500 mb-3" x-text="selectedDoc ? selectedDoc.note : ''"></p>
         <div class="border rounded-lg overflow-hidden bg-gray-100 flex justify-center" style="max-height: 400px;">
             <img x-show="selectedSample.endsWith('.png') || selectedSample.endsWith('.jpg')"
                  :src="selectedSample ? '/api/documents/samples/' + selectedSample + '/raw' : null"
@@ -479,9 +591,17 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
 
     <!-- Prebuilt Field Extraction -->
     <div x-show="prebuiltResult" x-transition class="mt-6 bg-white rounded-lg shadow p-6 border-2 border-green-200">
-        <h3 class="text-lg font-semibold text-green-800 mb-2">🎯 DI Prebuilt <span x-text="prebuiltLabel"></span> — Field Extraction</h3>
-        <p class="text-sm text-gray-500 mb-4">
+        <h3 x-show="hasNativePrebuiltModel" class="text-lg font-semibold text-green-800 mb-2">
+            🎯 DI Prebuilt <span x-text="selectedDoc?.label || 'Document'"></span> - Field Extraction
+        </h3>
+        <h3 x-show="!hasNativePrebuiltModel" class="text-lg font-semibold text-green-800 mb-2">
+            🧭 DI Layout Fallback - Normalize the Form
+        </h3>
+        <p x-show="hasNativePrebuiltModel" class="text-sm text-gray-500 mb-4">
             DI's prebuilt models extract <strong>specific, typed fields</strong> with confidence scores — no GenAI needed. This is DI's superpower for known document types.
+        </p>
+        <p x-show="!hasNativePrebuiltModel" class="text-sm text-gray-500 mb-4">
+            This sample intentionally uses <strong>prebuilt-layout</strong> instead of a dedicated prebuilt schema. You still get deterministic structure (text, tables, spans) and can map alternate labels into one canonical schema in your pipeline.
         </p>
 
         <template x-if="prebuiltResult && !hasError(prebuiltResult)">
@@ -521,7 +641,7 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
                 </template>
 
                 <template x-if="!prebuiltResult.result?.documents?.[0]?.fields">
-                    <p class="text-sm text-gray-500 italic">No fields extracted. The document may not match the expected prebuilt model format.</p>
+                    <p class="text-sm text-gray-500 italic" x-text="hasNativePrebuiltModel ? 'No fields extracted. The document may not match the expected prebuilt model format.' : 'No typed fields is the expected outcome here. Use the layout JSON and table structure to normalize this variation into your standard schema.'"></p>
                 </template>
 
                 <div class="flex gap-2 mt-3">
@@ -560,7 +680,7 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
             </div>
             <div>
                 <div class="font-medium text-sky-800 mb-1">🎯 Prebuilt Fields</div>
-                <p class="text-xs text-gray-600">Scroll down to the green section. DI's prebuilt models extract typed fields (merchant, total, date) with confidence scores — no GenAI, no schema definition needed.</p>
+                <p class="text-xs text-gray-600">Scroll down to the green section. DI either extracts typed prebuilt fields or shows you the layout fallback path you would normalize for predictable form variants.</p>
             </div>
             <div>
                 <div class="font-medium text-sky-800 mb-1">📄 Content Format</div>
@@ -577,6 +697,7 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
             <li>DI provides <strong>deterministic results</strong> — same input always yields the same output. No GenAI variability.</li>
             <li>DI is <strong>faster and cheaper</strong> — $0.01/page vs $0.05/page for CU custom extraction.</li>
             <li><strong>Confidence scoring</strong> — each extracted field has a confidence percentage. Green (≥90%) means high certainty. This enables automated processing rules.</li>
+            <li><strong>Controlled layout drift is still a DI problem.</strong> For Purchase Order A/B and Vendor Intake A/B, DI layout plus a thin normalization layer is often enough.</li>
             <li>Compare the <strong>API traces</strong> — notice DI's speed advantage on structured documents.</li>
             <li><strong>Prebuilt model catalog:</strong> receipt, invoice, W-2, ID document, health insurance card, business card, and more — all out of the box.</li>
         </ul>

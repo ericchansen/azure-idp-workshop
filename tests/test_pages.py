@@ -13,6 +13,7 @@ def test_module_1_page(client):  # type: ignore[no-untyped-def]
     resp = client.get("/module/1")
     assert resp.status_code == 200
     assert "OCR" in resp.text
+    assert "Purchase Order A" in resp.text
 
 
 def test_module_2_page(client):  # type: ignore[no-untyped-def]
