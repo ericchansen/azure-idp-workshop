@@ -19,7 +19,7 @@ test-e2e: ## Run structural E2E tests (mocked)
 	npx playwright test --grep-invert Smoke --project="Desktop Edge"
 
 test-smoke: ## Run smoke E2E tests (live, requires deployed app)
-	npx playwright test --grep Smoke --project="Desktop Edge"
+	node scripts/require-smoke-base-url.js && npx playwright test --grep Smoke --project="Desktop Edge"
 
 test-all: lint format typecheck test test-e2e ## Run all checks and tests
 

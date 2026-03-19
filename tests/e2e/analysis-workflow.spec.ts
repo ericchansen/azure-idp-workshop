@@ -95,6 +95,95 @@ const mockCUCustomResult = {
   },
 };
 
+const mockBatchResult = {
+  result: {
+    documents: [
+      {
+        sample: "contract.pdf",
+        document_id: "doc-contract-001",
+        cu_fields: {
+          summary: "Professional services agreement for advisory support.",
+          key_topics: "contract, services, obligations",
+        },
+        cu_duration_ms: 2400,
+        search_duration_ms: 112,
+        cu_trace: {
+          url: "https://test.cognitiveservices.azure.com/contentunderstanding/analyzers/workshop_batch:analyze",
+          method: "POST",
+          response_status: 200,
+          duration_ms: 2400,
+        },
+        search_trace: {
+          url: "https://test.search.windows.net/indexes/workshop-search/docs/index",
+          method: "POST",
+          response_status: 200,
+          duration_ms: 112,
+        },
+      },
+      {
+        sample: "invoice.pdf",
+        document_id: "doc-invoice-001",
+        cu_fields: {
+          summary: "Invoice for consulting services.",
+          key_topics: "invoice, services, billing",
+        },
+        cu_duration_ms: 1800,
+        search_duration_ms: 98,
+        cu_trace: {
+          url: "https://test.cognitiveservices.azure.com/contentunderstanding/analyzers/workshop_batch:analyze",
+          method: "POST",
+          response_status: 200,
+          duration_ms: 1800,
+        },
+        search_trace: {
+          url: "https://test.search.windows.net/indexes/workshop-search/docs/index",
+          method: "POST",
+          response_status: 200,
+          duration_ms: 98,
+        },
+      },
+      {
+        sample: "receipt.png",
+        document_id: "doc-receipt-001",
+        cu_fields: {
+          summary: "Retail receipt for hardware purchases.",
+          key_topics: "receipt, retail, purchase",
+        },
+        cu_duration_ms: 1600,
+        search_duration_ms: 87,
+        cu_trace: {
+          url: "https://test.cognitiveservices.azure.com/contentunderstanding/analyzers/workshop_batch:analyze",
+          method: "POST",
+          response_status: 200,
+          duration_ms: 1600,
+        },
+        search_trace: {
+          url: "https://test.search.windows.net/indexes/workshop-search/docs/index",
+          method: "POST",
+          response_status: 200,
+          duration_ms: 87,
+        },
+      },
+    ],
+    summary: {
+      total: 3,
+      succeeded: 3,
+      failed: 0,
+      total_cu_ms: 5800,
+      total_search_ms: 297,
+      total_ms: 6097,
+    },
+  },
+  trace: {
+    ensure_index: {
+      url: "https://test.search.windows.net/indexes/workshop-search",
+      method: "PUT",
+      response_status: 200,
+      duration_ms: 91,
+    },
+  },
+};
+
 // --- Helpers ---
 
 function mockRoute(
@@ -117,6 +206,10 @@ function mockErrorRoute(
   contentType = "text/plain"
 ) {
   return route.fulfill({ status, contentType, body });
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ============================================================
@@ -329,5 +422,53 @@ test.describe("Error Resilience — Mixed Results", () => {
     ).toBeVisible();
     // DI should show error
     await expect(page.getByText("DI service is down").first()).toBeVisible();
+  });
+});
+
+test.describe("Module 4 — Batch Workflow", () => {
+  test("batch run shows summary, per-document results, and traces", async ({
+    page,
+    consoleErrors,
+  }) => {
+    await page.route("**/api/batch/process", async (route) => {
+      await delay(250);
+      await mockRoute(route, mockBatchResult);
+    });
+
+    await page.goto("/module/4");
+
+    const batchRequestPromise = page.waitForRequest(
+      (request) =>
+        request.url().endsWith("/api/batch/process") && request.method() === "POST"
+    );
+
+    await page.getByRole("button", { name: /Run Batch Pipeline/i }).click();
+
+    await expect(page.getByText(/Processing\.\.\./)).toBeVisible();
+
+    const batchRequest = await batchRequestPromise;
+    expect(batchRequest.postDataJSON()).toEqual({
+      samples: ["contract.pdf", "invoice.pdf", "receipt.png"],
+    });
+
+    await expect(page.getByText("Batch Complete")).toBeVisible();
+    const contractCard = page.locator(".border.rounded-lg.p-4").filter({
+      has: page.getByRole("heading", { name: "contract.pdf" }),
+    });
+    const invoiceCard = page.locator(".border.rounded-lg.p-4").filter({
+      has: page.getByRole("heading", { name: "invoice.pdf" }),
+    });
+    const receiptCard = page.locator(".border.rounded-lg.p-4").filter({
+      has: page.getByRole("heading", { name: "receipt.png" }),
+    });
+
+    await expect(contractCard).toContainText("Professional services agreement for advisory support.");
+    await expect(invoiceCard).toContainText("Invoice for consulting services.");
+    await expect(receiptCard).toContainText("Retail receipt for hardware purchases.");
+
+    const traceDetails = page.locator("details", { hasText: "View API Traces" }).first();
+    await traceDetails.locator("summary").click();
+    await expect(traceDetails.getByText("CU Trace")).toBeVisible();
+    await expect(traceDetails.getByText("Search Trace")).toBeVisible();
   });
 });

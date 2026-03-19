@@ -65,6 +65,8 @@ BASE_URL=https://your-deployed-app.azurecontainerapps.io \
   npx playwright test --grep Smoke --project="Desktop Edge"
 ```
 
+If `BASE_URL` is missing or points to `localhost`, the smoke suite will now fail fast with a clear error instead of producing misleading live-Azure failures from a local app.
+
 ## Branch Strategy
 
 1. **Create a feature branch** from `main`:

@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 from azure.core.exceptions import HttpResponseError
 
 from workshop.services.ai_search import (
+    build_document_id,
     ensure_index,
     get_index_stats,
     index_document,
@@ -75,8 +76,27 @@ async def test_index_document_success(mock_get_client: MagicMock) -> None:
     result = await index_document(doc)
 
     assert result["result"]["indexed"] == 1
+    assert result["result"]["failed"] == 0
     assert result["result"]["total"] == 1
     assert result["trace"]["response"]["status"] == 200
+
+
+@patch("workshop.services.ai_search._get_search_client")
+async def test_index_document_partial_failure_sets_error(mock_get_client: MagicMock) -> None:
+    """Partial upload failures are surfaced through the trace and result."""
+    failed_upload_result = MagicMock()
+    failed_upload_result.succeeded = False
+    failed_upload_result.key = "abc"
+    failed_upload_result.error_message = "quota exceeded"
+    mock_get_client.return_value.upload_documents.return_value = [failed_upload_result]
+
+    result = await index_document({"id": "abc"})
+
+    assert result["result"]["indexed"] == 0
+    assert result["result"]["failed"] == 1
+    assert result["result"]["total"] == 1
+    assert "quota exceeded" in result["trace"]["error"]
+    assert result["trace"]["response"]["status"] == 500
 
 
 @patch("workshop.services.ai_search._get_search_client")
@@ -102,6 +122,12 @@ async def test_index_document_http_response_error(mock_get_client: MagicMock) ->
 
     assert result["result"] == {}
     assert result["trace"]["response"]["status"] == 503
+
+
+def test_build_document_id_is_stable() -> None:
+    """Stable IDs prevent duplicate entries when re-indexing the same sample."""
+    assert build_document_id("contract.pdf") == build_document_id("contract.pdf")
+    assert build_document_id("contract.pdf") != build_document_id("invoice.pdf")
 
 
 # --- search_documents ---

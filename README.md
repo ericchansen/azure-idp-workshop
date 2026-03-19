@@ -54,6 +54,12 @@ uv run pytest -v                 # Test
 docker build -t idp-workshop .   # Build container
 ```
 
+### E2E test targets
+
+- Structural E2E runs locally: `npx playwright test --grep-invert Smoke --project="Desktop Edge"`
+- Smoke E2E must target a deployed app: `BASE_URL=https://your-app.azurecontainerapps.io npx playwright test --grep Smoke --project="Desktop Edge"`
+- The smoke suite now fails fast if `BASE_URL` is missing or points at `localhost`, so local Azure config issues do not masquerade as deployment regressions.
+
 ## Architecture
 
 ```

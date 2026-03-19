@@ -412,7 +412,7 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
     <div class="bg-white rounded-lg shadow p-6 mb-6">
         <h2 class="text-lg font-semibold mb-3">👁️ Source Document — <span x-text="selectedSample"></span></h2>
         <div class="border rounded-lg overflow-hidden bg-gray-100" style="height: 300px;">
-            <iframe :src="'/api/documents/samples/' + selectedSample + '/raw'" class="w-full h-full"></iframe>
+            <iframe :src="selectedSample ? '/api/documents/samples/' + selectedSample + '/raw' : ''" class="w-full h-full"></iframe>
         </div>
     </div>
 

@@ -105,7 +105,7 @@ async def _process_single(sample: str, analyzer_id: str) -> dict[str, Any]:
         }
 
     # Build search document
-    doc_id = hashlib.md5(f"batch_{sample}".encode()).hexdigest()
+    doc_id = ais_service.build_document_id(sample)
 
     search_doc = {
         "id": doc_id,

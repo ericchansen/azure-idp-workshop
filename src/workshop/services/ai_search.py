@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 from typing import Any
 
@@ -12,6 +13,11 @@ from workshop.config import settings
 from workshop.services.api_trace import ApiTrace, TraceTimer, sanitize_headers
 
 logger = logging.getLogger(__name__)
+
+
+def build_document_id(source_doc: str) -> str:
+    """Build a stable search document ID from the source document name."""
+    return hashlib.md5(source_doc.encode()).hexdigest()
 
 
 def _get_credential() -> Any:
@@ -134,8 +140,29 @@ async def index_document(doc: dict[str, Any]) -> dict[str, Any]:
             client = _get_search_client()
             result = await asyncio.to_thread(client.upload_documents, documents=[doc])
             succeeded = sum(1 for r in result if r.succeeded)
-            trace.response_status = 200
-            result_dict = {"indexed": succeeded, "total": len(result)}
+            failed_results = [r for r in result if not r.succeeded]
+            result_dict = {
+                "indexed": succeeded,
+                "failed": len(failed_results),
+                "total": len(result),
+            }
+            if failed_results:
+                failures = []
+                for failure in failed_results:
+                    key = getattr(failure, "key", "<unknown>")
+                    message = (
+                        getattr(failure, "error_message", None)
+                        or getattr(failure, "errorMessage", None)
+                        or "indexing failed"
+                    )
+                    failures.append(f"{key}: {message}")
+                trace.error = (
+                    f"Failed to index {len(failed_results)} of {len(result)} documents: "
+                    + "; ".join(failures)
+                )
+                trace.response_status = 500
+            else:
+                trace.response_status = 200
             trace.response_body = result_dict
         except HttpResponseError as e:
             trace.error = f"HttpResponseError: {e}"
