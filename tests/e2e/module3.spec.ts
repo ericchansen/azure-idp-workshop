@@ -329,4 +329,54 @@ test.describe("Module 3 — Search Workflow", () => {
     await expect(page.getByText("Gateway Timeout")).toBeVisible();
     await expect(page.getByText("Unexpected token")).not.toBeVisible();
   });
+
+  test("security best practices section is present and interactive", async ({
+    page,
+    consoleErrors,
+  }) => {
+    await page.goto("/module/3");
+
+    // Security section is collapsible — summary should be visible
+    const securityDetails = page.locator("details", {
+      hasText: /Security Best Practices/,
+    });
+    const securitySummary = securityDetails.locator("summary");
+    await expect(securitySummary).toBeVisible();
+
+    // Expand the section
+    await securitySummary.click();
+
+    // Workshop vs Production comparison table
+    await expect(
+      securityDetails.getByText("Workshop vs. Production")
+    ).toBeVisible();
+    await expect(securityDetails.getByText("Private endpoint + VNet integration")).toBeVisible();
+
+    // RBAC vs API Keys subsection
+    await expect(securityDetails.getByText("RBAC vs. API Keys")).toBeVisible();
+    await expect(
+      securityDetails.getByText("Search Index Data Contributor", { exact: true })
+    ).toBeVisible();
+
+    // Managed Identity subsection
+    await expect(securityDetails.getByText("System-Assigned")).toBeVisible();
+    await expect(securityDetails.getByText("User-Assigned")).toBeVisible();
+
+    // Network Isolation subsection
+    await expect(securityDetails.getByText("Network Isolation")).toBeVisible();
+
+    // Encryption subsection
+    await expect(
+      securityDetails.getByRole("heading", { name: "Customer-Managed Keys (CMK)" })
+    ).toBeVisible();
+
+    // IaC tabs: Bicep code is visible by default
+    await expect(securityDetails.locator("pre", { hasText: /disableLocalAuth: true/ })).toBeVisible();
+
+    // Switch to Terraform tab
+    await securityDetails.getByRole("button", { name: "Terraform" }).click();
+    await expect(
+      securityDetails.locator("pre", { hasText: /local_authentication_enabled/ })
+    ).toBeVisible();
+  });
 });
