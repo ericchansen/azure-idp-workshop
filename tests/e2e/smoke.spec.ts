@@ -171,7 +171,7 @@ test.describe("Smoke: Module 3 — Search Workflow", () => {
     await page.getByRole("button", { name: /Enrich & Index Document/i }).click();
 
     await expect(page.getByText("✅ Document Indexed")).toBeVisible({ timeout: 120_000 });
-    await expect(page.getByText("Search Index")).toBeVisible();
+    await expect(page.locator("h4", { hasText: "Search Index" })).toBeVisible();
     await assertNoErrorBanners(page);
 
     await page.getByPlaceholder("e.g. service agreement obligations").fill("contract");
