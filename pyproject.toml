@@ -23,7 +23,7 @@ dependencies = [
     "python-multipart",
     # Templates
     "jinja2",
-    "starlette>=0.45,<1",
+    "starlette>=0.45,<2",
     "azure-search-documents>=11.7.0b2",
 ]
 
