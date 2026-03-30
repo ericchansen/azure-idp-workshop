@@ -178,7 +178,8 @@ test.describe("Smoke: Module 3 — Search Workflow", () => {
     await page.getByRole("button", { name: /Search/ }).click();
 
     await expect(page.getByText(/🔎 Results — \d+ hit\(s\)/)).toBeVisible({ timeout: 60_000 });
-    await expect(page.locator(".border.border-gray-200.rounded-lg.p-4").first()).toBeVisible();
+    const resultsSection = page.locator('[x-show="searchResult"]');
+    await expect(resultsSection.locator(".border.border-gray-200.rounded-lg.p-4").first()).toBeVisible();
     await assertNoErrorBanners(page);
   });
 });
