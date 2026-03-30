@@ -1,7 +1,5 @@
 .git/
 .github/
-.squad/
-.squad-templates/
 .copilot/
 .venv/
 .env
