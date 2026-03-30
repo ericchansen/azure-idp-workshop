@@ -56,8 +56,7 @@ jobs:
           resource-group-name: ${{ env.AZURE_RESOURCE_GROUP }}
           template-file: infra/main.bicep
           parameters: >-
-            environmentName=prod
-            acrName=${{ env.ACR_NAME }}
+            {"environmentName": "prod", "acrName": "${{ env.ACR_NAME }}"}
 
       - name: Resolve runtime env
         id: runtime

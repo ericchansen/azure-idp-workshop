@@ -54,8 +54,7 @@ jobs:
           resource-group-name: ${{ env.AZURE_RESOURCE_GROUP }}
           template-file: infra/main.bicep
           parameters: >-
-            environmentName=${{ env.ENVIRONMENT }}
-            acrName=${{ env.ACR_NAME }}
+            {"environmentName": "${{ env.ENVIRONMENT }}", "acrName": "${{ env.ACR_NAME }}"}
 
       - name: Ensure role assignments
         run: |
