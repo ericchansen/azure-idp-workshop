@@ -7,6 +7,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 permissions:
   id-token: write
   contents: read
@@ -41,14 +45,17 @@ jobs:
 
       - name: Ensure infrastructure
         id: infra
-        uses: azure/arm-deploy@a1361c2c2cd398621955b16ca32e01c65ea340f5 # v2
+        uses: azure/bicep-deploy@4d5dc29bf04d05546dd5df9c665c54b9c5213207 # v2
         with:
-          resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP }}
-          template: infra/main.bicep
+          type: deployment
+          operation: create
+          scope: resourceGroup
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resource-group-name: ${{ env.AZURE_RESOURCE_GROUP }}
+          template-file: infra/main.bicep
           parameters: >-
             environmentName=${{ env.ENVIRONMENT }}
             acrName=${{ env.ACR_NAME }}
-          failOnStdErr: false
 
       - name: Ensure role assignments
         run: |
@@ -167,6 +174,20 @@ jobs:
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --revision-weight latest=100 \
             --output none
+
+      - name: Wait for app health
+        run: |
+          APP_URL="${{ steps.deploy.outputs.app_url }}"
+          echo "Waiting for $APP_URL to become healthy..."
+          for i in $(seq 1 30); do
+            if curl -sf "${APP_URL}/api/health" >/dev/null 2>&1; then
+              echo "✅ App is healthy"
+              exit 0
+            fi
+            echo "Attempt $i/30: waiting..."
+            sleep 10
+          done
+          echo "⚠️ Health check timed out (app may still be starting)"
 
       - name: Show App URL
         run: echo "🚀 Production deployed to ${{ steps.deploy.outputs.app_url }}"
