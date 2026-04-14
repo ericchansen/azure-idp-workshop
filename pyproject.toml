@@ -36,7 +36,7 @@ packages = ["src/workshop"]
 
 [dependency-groups]
 dev = [
-    "pytest>=8.0",
+    "pytest>=9.0.3",
     "pytest-asyncio",
     "pytest-cov",
     "ruff",
