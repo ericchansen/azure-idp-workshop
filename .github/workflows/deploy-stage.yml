@@ -47,7 +47,7 @@ jobs:
 
       - name: Ensure infrastructure
         id: infra
-        uses: azure/bicep-deploy@4d5dc29bf04d05546dd5df9c665c54b9c5213207 # v2
+        uses: azure/bicep-deploy@66910e9c5c7733c33a1cd605030d02234b3bc4ed # v2
         with:
           type: deployment
           operation: create
