@@ -17,6 +17,7 @@ permissions:
 
 env:
   AZURE_RESOURCE_GROUP: rg-idp-workshop
+  LOCATION: eastus
   ACR_NAME: idpworkshopacr
   IMAGE_NAME: idp-workshop
   ENVIRONMENT: prod
@@ -42,6 +43,9 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure resource group
+        run: az group create --name ${{ env.AZURE_RESOURCE_GROUP }} --location ${{ env.LOCATION }} --output none
 
       - name: Ensure infrastructure
         id: infra
