@@ -148,21 +148,57 @@ jobs:
       - name: Deploy app revision
         id: deploy
         run: |
-          az containerapp update \
-            --name idp-workshop \
+          IDENTITY_RESOURCE_ID=$(az identity show \
+            --name ${{ env.IDENTITY_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --image ${{ steps.image.outputs.image-ref }} \
-            --set-env-vars \
-              ENVIRONMENT=${{ env.ENVIRONMENT }} \
-              AI_SERVICES_ENDPOINT=${{ steps.runtime.outputs.ai_services_endpoint }} \
-              STORAGE_ACCOUNT_URL=${{ steps.runtime.outputs.storage_account_url }} \
-              LOG_LEVEL=INFO \
-              AZURE_CLIENT_ID=${{ steps.runtime.outputs.azure_client_id }} \
-              CU_COMPLETION_DEPLOYMENT=gpt-4.1 \
-              CU_EMBEDDING_DEPLOYMENT=text-embedding-3-large \
-              AIS_ENDPOINT=${{ steps.runtime.outputs.ais_endpoint }} \
-              AIS_INDEX_NAME=workshop-documents \
-            --output none
+            --query id -o tsv)
+          CAE_ID=$(az containerapp env show \
+            --name idp-cae \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query id -o tsv)
+
+          if az containerapp show --name idp-workshop --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query name -o tsv 2>/dev/null; then
+            echo "Container app exists — updating"
+            az containerapp update \
+              --name idp-workshop \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --image ${{ steps.image.outputs.image-ref }} \
+              --set-env-vars \
+                ENVIRONMENT=${{ env.ENVIRONMENT }} \
+                AI_SERVICES_ENDPOINT=${{ steps.runtime.outputs.ai_services_endpoint }} \
+                STORAGE_ACCOUNT_URL=${{ steps.runtime.outputs.storage_account_url }} \
+                LOG_LEVEL=INFO \
+                AZURE_CLIENT_ID=${{ steps.runtime.outputs.azure_client_id }} \
+                CU_COMPLETION_DEPLOYMENT=gpt-4.1 \
+                CU_EMBEDDING_DEPLOYMENT=text-embedding-3-large \
+                AIS_ENDPOINT=${{ steps.runtime.outputs.ais_endpoint }} \
+                AIS_INDEX_NAME=workshop-documents \
+              --output none
+          else
+            echo "Container app does not exist — creating"
+            az containerapp create \
+              --name idp-workshop \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --environment "$CAE_ID" \
+              --image ${{ steps.image.outputs.image-ref }} \
+              --registry-server ${{ env.ACR_NAME }}.azurecr.io \
+              --registry-identity "$IDENTITY_RESOURCE_ID" \
+              --user-assigned "$IDENTITY_RESOURCE_ID" \
+              --ingress external --target-port 8080 \
+              --revisions-mode multiple \
+              --min-replicas 1 --max-replicas 3 \
+              --env-vars \
+                ENVIRONMENT=${{ env.ENVIRONMENT }} \
+                AI_SERVICES_ENDPOINT=${{ steps.runtime.outputs.ai_services_endpoint }} \
+                STORAGE_ACCOUNT_URL=${{ steps.runtime.outputs.storage_account_url }} \
+                LOG_LEVEL=INFO \
+                AZURE_CLIENT_ID=${{ steps.runtime.outputs.azure_client_id }} \
+                CU_COMPLETION_DEPLOYMENT=gpt-4.1 \
+                CU_EMBEDDING_DEPLOYMENT=text-embedding-3-large \
+                AIS_ENDPOINT=${{ steps.runtime.outputs.ais_endpoint }} \
+                AIS_INDEX_NAME=workshop-documents \
+              --output none
+          fi
 
           APP_URL=$(az containerapp show \
             --name idp-workshop \
