@@ -6,8 +6,8 @@
     <h1 class="text-3xl font-bold mb-2">Module 1: Structured Extraction — When DI Wins</h1>
     <p class="text-gray-600 text-lg">
         DI excels at forms with predefined fields and predictable variations. Compare extraction quality,
-        confidence scoring, and cost - DI is faster, cheaper ($0.01/page vs $0.05/page CU custom),
-        and deterministic.
+        confidence scoring, and cost — DI is faster, deterministic, and has simple per-page pricing
+        vs CU's multi-meter model (content extraction + AOAI tokens).
     </p>
 </div>
 
@@ -61,7 +61,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div class="font-semibold text-blue-800 mb-1">🔵 Document Intelligence (DI)</div>
-                    <p class="text-sm text-gray-700">Microsoft's battle-tested OCR + layout engine. Deterministic results, fast, cheap ($0.01/page). Built for high-volume, structured document processing - invoices, receipts, onboarding packets, and other fixed forms.</p>
+                    <p class="text-sm text-gray-700">Microsoft's battle-tested OCR + layout engine. Deterministic results, fast, simple per-page pricing. Built for high-volume, structured document processing — invoices, receipts, onboarding packets, and other fixed forms.</p>
                 </div>
                 <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
                     <div class="font-semibold text-purple-800 mb-1">🟣 Content Understanding (CU)</div>
@@ -77,7 +77,7 @@
                 <li><strong>Invoice processing pipelines</strong> — DI's prebuilt-invoice extracts fields + line items automatically</li>
                 <li><strong>Receipt scanning</strong> — DI's prebuilt-receipt handles photos of receipts with high accuracy</li>
                 <li><strong>Form digitization</strong> — DI excels at forms with fixed fields, even when labels drift between versions (tax forms, onboarding packets, applications)</li>
-                <li><strong>High-volume OCR</strong> — DI processes thousands of pages/minute at $0.01/page with deterministic results</li>
+                <li><strong>High-volume OCR</strong> — DI processes thousands of pages/minute with simple per-page pricing and deterministic results</li>
             </ul>
         </div>
 
@@ -127,7 +127,7 @@ DI_URL=$(curl -s -D - -X POST "$ENDPOINT/formrecognizer/documentModels/prebuilt-
 curl -s -H "Authorization: Bearer $TOKEN" "$DI_URL" | python -m json.tool
 
 # --- Content Understanding (Layout) ---
-CU_URL=$(curl -s -D - -X POST "$ENDPOINT/contentunderstanding/analyzers/prebuilt-layout:analyze?api-version=2025-05-01-preview" \
+CU_URL=$(curl -s -D - -X POST "$ENDPOINT/contentunderstanding/analyzers/prebuilt-layout:analyze?api-version=2025-11-01" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/pdf" \
   --data-binary @invoice.pdf | grep -i operation-location | tr -d '\r' | cut -d' ' -f2)
@@ -695,7 +695,7 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
         <ul class="text-sm text-yellow-800 space-y-1 list-disc list-inside">
             <li><strong>DI is built for structured, high-volume extraction.</strong> Prebuilt models extract receipt/invoice fields without any configuration.</li>
             <li>DI provides <strong>deterministic results</strong> — same input always yields the same output. No GenAI variability.</li>
-            <li>DI is <strong>faster and cheaper</strong> — $0.01/page vs $0.05/page for CU custom extraction.</li>
+            <li>DI is <strong>faster and has simpler pricing</strong> — flat per-page rate vs CU's multi-meter model (content extraction + AOAI tokens).</li>
             <li><strong>Confidence scoring</strong> — each extracted field has a confidence percentage. Green (≥90%) means high certainty. This enables automated processing rules.</li>
             <li><strong>Controlled layout drift is still a DI problem.</strong> For Purchase Order A/B and Vendor Intake A/B, DI layout plus a thin normalization layer is often enough.</li>
             <li>Compare the <strong>API traces</strong> — notice DI's speed advantage on structured documents.</li>
@@ -770,12 +770,12 @@ result = poller.result()</code></pre>
                 </div>
             </div>
             <div>
-                <h4 class="font-semibold text-indigo-800 mb-2">💰 Pricing (per page)</h4>
+                <h4 class="font-semibold text-indigo-800 mb-2">💰 Pricing (per page, approximate)</h4>
                 <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div class="bg-white p-3 rounded border"><span class="text-blue-700 font-medium">DI Layout:</span> $0.01/page</div>
-                    <div class="bg-white p-3 rounded border"><span class="text-purple-700 font-medium">CU Layout:</span> $0.005/page</div>
+                    <div class="bg-white p-3 rounded border"><span class="text-blue-700 font-medium">DI Layout:</span> ~$0.01/page (flat per-page)</div>
+                    <div class="bg-white p-3 rounded border"><span class="text-purple-700 font-medium">CU Layout:</span> ~$0.005/page + contextualization tokens</div>
                 </div>
-                <p class="text-xs text-gray-500 mt-1">CU Layout is 50% cheaper for equivalent OCR + layout functionality.</p>
+                <p class="text-xs text-gray-500 mt-1">CU Layout has a lower base per-page rate, but also incurs contextualization token costs. See <a href="https://azure.microsoft.com/pricing/details/content-understanding/" target="_blank" rel="noopener noreferrer" class="underline">CU pricing</a> and <a href="https://azure.microsoft.com/pricing/details/ai-document-intelligence/" target="_blank" rel="noopener noreferrer" class="underline">DI pricing</a> for current rates.</p>
             </div>
             <div>
                 <h4 class="font-semibold text-indigo-800 mb-2">🛠️ Quick Setup</h4>
