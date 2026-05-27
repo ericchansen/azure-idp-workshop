@@ -7,7 +7,7 @@
     <p class="text-gray-600 text-lg">
         CU's custom field inference uses GenAI to extract summaries, entities, sentiment, and risk from any document —
         define your own fields and watch CU understand documents, not just read them.
-        We also run DI side-by-side so you can see the difference: DI extracts text but can't infer meaning.
+        We also run DI side-by-side so you can see the difference: DI can extract custom fields too, but requires labeled training data instead of zero-shot GenAI inference.
     </p>
 </div>
 
@@ -71,7 +71,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div class="font-semibold text-blue-800 mb-1">🔵 Document Intelligence (DI)</div>
-                    <p class="text-sm text-gray-700">DI's layout model extracts raw text and structure. On unstructured documents like contracts, it gives you a wall of text — no semantic understanding, no summaries, no risk assessment.</p>
+                    <p class="text-sm text-gray-700">DI's layout model extracts raw text and structure. DI also supports custom extraction models (trained on labeled samples), but in layout mode it gives you text and tables — no semantic understanding or summaries.</p>
                 </div>
                 <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
                     <div class="font-semibold text-purple-800 mb-1">🟣 Content Understanding (CU)</div>
@@ -653,11 +653,11 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
             </div>
             <div>
                 <div class="font-medium text-sky-800 mb-1">📋 Schema-Driven, No Training</div>
-                <p class="text-xs text-gray-600">You defined 5 fields. CU extracted all 5 using GenAI — no labeled training data needed. Traditional ML extraction requires thousands of labeled examples.</p>
+                <p class="text-xs text-gray-600">You defined 5 fields. CU extracted all 5 using GenAI — no labeled training data needed. DI custom models can also extract custom fields, but require 5+ labeled samples per document type.</p>
             </div>
             <div>
                 <div class="font-medium text-sky-800 mb-1">💰 Cost vs Value</div>
-                <p class="text-xs text-gray-600">CU costs 5× more ($0.05 vs $0.01/page) — but it delivers structured intelligence, not a wall of text. Check the API trace for token usage.</p>
+                <p class="text-xs text-gray-600">CU has higher per-document costs — content extraction plus AOAI model tokens billed separately. But it delivers structured intelligence, not raw text. Check the API trace for token usage.</p>
             </div>
         </div>
     </div>
@@ -667,10 +667,10 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
         <h3 class="font-semibold text-yellow-900 mb-2">💡 What to Notice — CU's Semantic Superpower</h3>
         <ul class="text-sm text-yellow-800 space-y-1 list-disc list-inside">
             <li><strong>DI is text/layout extraction. CU is document understanding.</strong> That's the fundamental difference.</li>
-            <li>DI gave you a wall of text. CU gave you <strong>structured, actionable intelligence</strong> — parties, obligations, sentiment, risk.</li>
+            <li>DI's layout mode gave you raw text. CU gave you <strong>structured, actionable intelligence</strong> — parties, obligations, sentiment, risk.</li>
             <li>The custom fields were defined by YOU — try adding your own! CU uses GenAI to infer them. No model training, no labeled datasets.</li>
             <li><strong>Description quality matters.</strong> Better field descriptions → more accurate extraction. Click to edit and experiment.</li>
-            <li>DI cannot do this at all — it has no concept of "summarize" or "assess risk." That's why CU exists.</li>
+            <li>DI's layout mode has no concept of "summarize" or "assess risk." DI custom models can extract specific fields, but require labeled training data — CU does it zero-shot with GenAI.</li>
             <li>CU's custom fields use your Foundry model deployment (GPT-4.1) — check the API trace for token usage and cost.</li>
         </ul>
     </div>
@@ -704,12 +704,12 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
                 </div>
             </div>
             <div>
-                <h4 class="font-semibold text-indigo-800 mb-2">💰 Pricing Comparison</h4>
+                <h4 class="font-semibold text-indigo-800 mb-2">💰 Pricing Comparison (approximate)</h4>
                 <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div class="bg-white p-3 rounded border"><span class="text-blue-700 font-medium">DI Layout:</span> $0.01/page (text only)</div>
-                    <div class="bg-white p-3 rounded border"><span class="text-purple-700 font-medium">CU Custom:</span> $0.05/page (includes GenAI)</div>
+                    <div class="bg-white p-3 rounded border"><span class="text-blue-700 font-medium">DI Layout:</span> ~$0.01/page (flat per-page)</div>
+                    <div class="bg-white p-3 rounded border"><span class="text-purple-700 font-medium">CU Custom:</span> ~$0.05/page + AOAI model tokens (billed separately)</div>
                 </div>
-                <p class="text-xs text-gray-500 mt-1">CU Custom costs 5× more — but it delivers <em>understanding</em>, not just text. The right tool depends on what you need.</p>
+                <p class="text-xs text-gray-500 mt-1">CU Custom pricing has two components: content extraction per-page and AOAI model token usage. See <a href="https://azure.microsoft.com/pricing/details/content-understanding/" target="_blank" rel="noopener noreferrer" class="underline">CU pricing</a> for current rates.</p>
             </div>
             <div>
                 <h4 class="font-semibold text-indigo-800 mb-2">🐍 Python SDK Code</h4>
