@@ -127,7 +127,7 @@ DI_URL=$(curl -s -D - -X POST "$ENDPOINT/formrecognizer/documentModels/prebuilt-
 curl -s -H "Authorization: Bearer $TOKEN" "$DI_URL" | python -m json.tool
 
 # --- Content Understanding (Layout) ---
-CU_URL=$(curl -s -D - -X POST "$ENDPOINT/contentunderstanding/analyzers/prebuilt-layout:analyze?api-version=2025-05-01-preview" \
+CU_URL=$(curl -s -D - -X POST "$ENDPOINT/contentunderstanding/analyzers/prebuilt-layout:analyze?api-version=2025-11-01" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/pdf" \
   --data-binary @invoice.pdf | grep -i operation-location | tr -d '\r' | cut -d' ' -f2)
