@@ -753,7 +753,7 @@ resource "azurerm_monitor_diagnostic_setting" "search_diag" {
                             <thead><tr><th>Resource</th><th>Tier</th><th>Cost</th><th>Notes</th></tr></thead>
                             <tbody>
                                 <tr><td>AI Search</td><td>Basic</td><td>~$75/mo</td><td>Semantic search included; 1 replica, 1 partition</td></tr>
-                                <tr><td>CU extraction</td><td>S0</td><td>~$0.05/page</td><td>GPT-4.1 token usage on top</td></tr>
+                                <tr><td>CU extraction</td><td>S0</td><td>~$0.05/page</td><td>+ AOAI model token usage (billed separately)</td></tr>
                                 <tr><td>Search queries</td><td>-</td><td>Free</td><td>Included in Basic tier</td></tr>
                             </tbody>
                         </table>

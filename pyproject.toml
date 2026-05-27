@@ -7,7 +7,7 @@ license = { text = "MIT" }
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # Azure AI Content Understanding
-    "azure-ai-contentunderstanding>=1.0.0b1",
+    "azure-ai-contentunderstanding==1.1.0",
     # Azure Document Intelligence
     "azure-ai-documentintelligence>=1.0.0",
     # Azure Storage & Identity

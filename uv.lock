@@ -38,16 +38,16 @@ wheels = [
 
 [[package]]
 name = "azure-ai-contentunderstanding"
-version = "1.0.0b1"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "azure-core" },
     { name = "isodate" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/80/bb/1074c95348f12da0b0945598244e04ca9c9d4a77598fcf49ecebc2a567dc/azure_ai_contentunderstanding-1.0.0b1.tar.gz", hash = "sha256:1dfd22ad4cb5ac459d0b478363a14902e6ab479cfce2492af4f6fc012d1644f3", size = 197582, upload-time = "2026-01-20T22:40:24.52Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b6/5a/6dbcb8278c8d3779fc03992d8a9f87a9ce5280437d76e72f8121f9a90d46/azure_ai_contentunderstanding-1.1.0.tar.gz", hash = "sha256:00f39c7cf2ba50c8d4586315f4295a45fad0881daaff07d13d33aea2bafc7ec8", size = 230330, upload-time = "2026-04-20T23:29:08.315Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/12/67/516c641799451660512766b69f422b98d245869305bd9581c52ff0393109/azure_ai_contentunderstanding-1.0.0b1-py3-none-any.whl", hash = "sha256:6f3b8e496c8d1a691363b2706036f6c9adce7eca31878ffd116a744a41c209ed", size = 98280, upload-time = "2026-01-20T22:40:26.071Z" },
+    { url = "https://files.pythonhosted.org/packages/67/d6/6f60ac39b73a0b8a2bc86cd6895e26eccc20d9b7bde86814fe6a36964dff/azure_ai_contentunderstanding-1.1.0-py3-none-any.whl", hash = "sha256:d1d6bdeffe02f5c8cc5309f0e120a1338f51af04638605f9617b7b501e2d1dd6", size = 101987, upload-time = "2026-04-20T23:29:09.933Z" },
 ]
 
 [[package]]
@@ -134,7 +134,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "azure-ai-contentunderstanding", specifier = ">=1.0.0b1" },
+    { name = "azure-ai-contentunderstanding", specifier = "==1.1.0" },
     { name = "azure-ai-documentintelligence", specifier = ">=1.0.0" },
     { name = "azure-identity", specifier = ">=1.25.1" },
     { name = "azure-search-documents", specifier = ">=11.7.0b2" },
