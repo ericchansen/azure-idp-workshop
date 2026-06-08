@@ -83,7 +83,7 @@ src/workshop/
 ├── routers/
 │   ├── di.py          (/api/di/*)     # Document Intelligence endpoints
 │   ├── cu.py          (/api/cu/*)     # Content Understanding endpoints
-│   ├── documents.py   (/api/documents/)  # Sample documents
+│   ├── documents.py   (/api/documents/)  # Samples and ephemeral uploads
 │   └── health.py      (/api/health)   # Health check
 ├── services/
 │   ├── document_intelligence.py       # DI SDK wrapper
@@ -131,7 +131,9 @@ src/workshop/
 |--------|------|---------|
 | `GET` | `/api/documents/samples` | List sample files |
 | `GET` | `/api/documents/samples/{filename}/raw` | Serve raw file bytes |
-| `POST` | `/api/documents/upload` | Upload document (10MB max) |
+| `POST` | `/api/documents/upload` | Validate uploaded document metadata (10MB max) |
+
+Uploads are request-scoped and raw bytes are not persisted by the workshop app. Modules 1 and 2 send uploaded files directly to analysis APIs. Modules 3 and 4 also accept uploads, but their enriched text and metadata are written into Azure AI Search as part of the indexing workflow.
 
 #### Health & Status
 | Method | Path | Purpose |

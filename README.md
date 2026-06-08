@@ -12,6 +12,8 @@ A web-based training tool with progressive modules that teach you:
 
 Every operation shows the **actual API request and response** — no black boxes.
 
+Bundled samples are provided for guided demos, and each module also supports uploading your own document. Uploads are limited to 10 MB per file. Analysis-only uploads are request-scoped and are not stored by the app; search and batch workflows index extracted content and metadata into Azure AI Search.
+
 ## Key Insight
 
 > Microsoft recommends **starting with Content Understanding** for most new document processing scenarios.
@@ -70,7 +72,7 @@ FastAPI (Jinja2 + Alpine.js)
     │
     ├─► Azure Document Intelligence (DI)
     ├─► Azure Content Understanding (CU)
-    └─► Azure Blob Storage (samples)
+    └─► Azure AI Search (indexed extracted content)
 ```
 
 For detailed technical architecture, deployment patterns, and design decisions, see [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
@@ -92,4 +94,3 @@ To maintain code quality and prevent accidental breaking changes, configure the 
 ## License
 
 MIT
-

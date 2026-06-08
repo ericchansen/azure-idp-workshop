@@ -169,21 +169,82 @@ MaxQueueLength=500</code></pre>
 <!-- Interactive Demo -->
 <div x-data="{
     processing: false, batchResult: null,
+    samples: ['contract.pdf', 'invoice.pdf', 'receipt.png'],
+    uploadedFiles: [], uploadError: '',
+    uploadScope: '',
+    uploadLimitBytes: 10 * 1024 * 1024,
+    maxBatchSize: 20,
+    acceptedExtensions: ['.pdf', '.jpeg', '.jpg', '.png', '.bmp', '.tiff', '.tif', '.heif', '.heic', '.docx', '.xlsx', '.pptx', '.html'],
     startTime: null, elapsed: '0.0', timer: null,
     currentDoc: '', completedDocs: 0, totalDocs: 0,
     hasError(r) { return r?.error },
+    get queuedDocumentNames() {
+        return [...this.samples, ...this.uploadedFiles.map((file) => file.name)];
+    },
+    get canRunBatch() {
+        return this.queuedDocumentNames.length > 0 && this.queuedDocumentNames.length <= this.maxBatchSize && !this.uploadError;
+    },
+    ensureUploadScope() {
+        let scope = localStorage.getItem('workshopUploadScope');
+        if (!scope) {
+            scope = (window.crypto?.randomUUID?.() || ('scope-' + Math.random().toString(36).slice(2) + Date.now().toString(36)));
+            localStorage.setItem('workshopUploadScope', scope);
+        }
+        this.uploadScope = scope;
+        return scope;
+    },
+    handleUpload(event) {
+        this.uploadError = '';
+        const files = Array.from(event.target.files || []);
+        for (const file of files) {
+            const ext = file.name.includes('.') ? '.' + file.name.split('.').pop().toLowerCase() : '';
+            if (!this.acceptedExtensions.includes(ext)) {
+                this.uploadError = 'Unsupported file type. Use PDF, image, Office, or HTML documents.';
+                continue;
+            }
+            if (file.size > this.uploadLimitBytes) {
+                this.uploadError = file.name + ' exceeds the 10 MB upload limit.';
+                continue;
+            }
+            if (this.queuedDocumentNames.includes(file.name)) {
+                this.uploadError = file.name + ' is already in the batch queue.';
+                continue;
+            }
+            if (this.queuedDocumentNames.length >= this.maxBatchSize) {
+                this.uploadError = 'Batch size cannot exceed ' + this.maxBatchSize + ' documents.';
+                break;
+            }
+            this.uploadedFiles.push(file);
+        }
+        event.target.value = '';
+    },
+    removeUpload(index) {
+        this.uploadedFiles.splice(index, 1);
+        this.uploadError = '';
+    },
+    buildBatchRequest() {
+        if (this.uploadedFiles.length) {
+            const form = new FormData();
+            form.append('samples', JSON.stringify(this.samples));
+            form.append('upload_scope', this.ensureUploadScope());
+            this.uploadedFiles.forEach((file) => form.append('files', file));
+            return fetch('/api/batch/process', { method: 'POST', body: form });
+        }
+        return fetch('/api/batch/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ samples: this.samples })
+        });
+    },
     async runBatch() {
+        if (!this.canRunBatch) return;
         this.processing = true; this.batchResult = null;
-        this.completedDocs = 0; this.totalDocs = 3;
+        this.completedDocs = 0; this.totalDocs = this.queuedDocumentNames.length;
         this.startTime = Date.now();
         this.timer = setInterval(() => { this.elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1); }, 100);
 
         try {
-            const resp = await fetch('/api/batch/process', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ samples: ['contract.pdf', 'invoice.pdf', 'receipt.png'] })
-            });
+            const resp = await this.buildBatchRequest();
             if (!resp.ok) { const t = await resp.text(); throw new Error(t || 'HTTP ' + resp.status); }
             this.batchResult = await resp.json();
         } catch (e) {
@@ -191,15 +252,53 @@ MaxQueueLength=500</code></pre>
         }
         this.processing = false; clearInterval(this.timer);
     }
-}" x-cloak>
+}" x-init="ensureUploadScope()" x-cloak>
 
     <!-- Batch Controls -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
         <h2 class="text-lg font-semibold mb-4">🚀 Batch Process All Documents</h2>
         <p class="text-sm text-gray-600 mb-4">
-            Process all 3 workshop documents through the full pipeline: CU enrichment (summary + key topics) → AI Search indexing.
+            Process the workshop documents plus optional uploads through the full pipeline: CU enrichment (summary + key topics) → AI Search indexing.
             In production, this would run through SimpleL7Proxy routing to PTU for cost savings.
         </p>
+        <div class="border-2 border-dashed rounded-xl p-4 mb-4"
+             :class="uploadedFiles.length ? 'border-rose-300 bg-rose-50' : 'border-gray-200 bg-gray-50'">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                    <h3 class="font-semibold text-sm text-gray-900">Add uploaded documents to the batch</h3>
+                    <p class="text-xs text-amber-700 mt-1">
+                        Batch uploads are processed request-by-request, but extracted content and metadata are written to Azure AI Search.
+                    </p>
+                    <p x-show="uploadError" class="text-xs text-red-700 mt-2" x-text="uploadError"></p>
+                </div>
+                <label class="inline-flex items-center justify-center px-4 py-2 bg-white border border-rose-200 text-rose-700 rounded-lg text-sm font-medium hover:bg-rose-50 cursor-pointer">
+                    Add files
+                    <input type="file" multiple class="sr-only"
+                           accept=".pdf,.jpeg,.jpg,.png,.bmp,.tiff,.tif,.heif,.heic,.docx,.xlsx,.pptx,.html"
+                           @change="handleUpload($event)" />
+                </label>
+            </div>
+        </div>
+
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+            <h3 class="font-semibold text-sm text-gray-900 mb-2">Batch queue</h3>
+            <div class="flex flex-wrap gap-2">
+                <template x-for="sample in samples" :key="sample">
+                    <span class="text-xs px-2 py-1 rounded-full bg-white border border-gray-200 text-gray-700">
+                        Sample: <span class="font-mono" x-text="sample"></span>
+                    </span>
+                </template>
+                <template x-for="(file, index) in uploadedFiles" :key="file.name + ':' + file.size">
+                    <span class="inline-flex items-center gap-2 text-xs px-2 py-1 rounded-full bg-rose-100 border border-rose-200 text-rose-800">
+                        Upload: <span class="font-mono" x-text="file.name"></span>
+                        <button type="button" @click="removeUpload(index)" class="font-bold text-rose-700 hover:text-rose-900" aria-label="Remove uploaded file">×</button>
+                    </span>
+                </template>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">
+                <span x-text="queuedDocumentNames.length"></span> / <span x-text="maxBatchSize"></span> documents queued.
+            </p>
+        </div>
 
         <!-- What to Look For -->
         <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
@@ -213,7 +312,7 @@ MaxQueueLength=500</code></pre>
         </div>
 
         <div class="flex items-center gap-4">
-            <button @click="runBatch()" :disabled="processing"
+            <button @click="runBatch()" :disabled="processing || !canRunBatch"
                 class="px-6 py-2.5 bg-rose-600 text-white rounded-lg font-medium hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                 <span x-show="!processing">⚡ Run Batch Pipeline</span>
                 <span x-show="processing" class="flex items-center gap-2">
@@ -228,7 +327,12 @@ MaxQueueLength=500</code></pre>
 
         <!-- Documents being processed -->
         <div class="mt-4 text-sm text-gray-500">
-            Documents: <span class="font-mono">contract.pdf</span>, <span class="font-mono">invoice.pdf</span>, <span class="font-mono">receipt.png</span>
+            Documents:
+            <template x-for="(name, index) in queuedDocumentNames" :key="name">
+                <span>
+                    <span x-show="index > 0">, </span><span class="font-mono" x-text="name"></span>
+                </span>
+            </template>
         </div>
     </div>
 

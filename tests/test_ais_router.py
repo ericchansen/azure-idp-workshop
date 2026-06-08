@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 
@@ -68,6 +70,88 @@ def test_index_with_custom_fields_reaches_azure(client):  # type: ignore[no-unty
                 ],
             },
         )
+
+
+def test_index_accepts_multipart_upload(client):  # type: ignore[no-untyped-def]
+    """POST /api/search/index accepts uploaded documents as multipart form data."""
+    with pytest.raises(RuntimeError, match="AI_SERVICES_ENDPOINT"):
+        client.post(
+            "/api/search/index",
+            data={
+                "fields": json.dumps(
+                    [{"name": "summary", "type": "string", "description": "A summary"}]
+                ),
+                "upload_scope": "test-scope",
+            },
+            files={"file": ("upload.pdf", b"%PDF-1.4\n", "application/pdf")},
+        )
+
+
+def test_index_multipart_rejects_invalid_fields(client):  # type: ignore[no-untyped-def]
+    resp = client.post(
+        "/api/search/index",
+        data={"fields": "not-json", "upload_scope": "test-scope"},
+        files={"file": ("upload.pdf", b"%PDF-1.4\n", "application/pdf")},
+    )
+    assert resp.status_code == 400
+    assert "valid JSON" in resp.json()["detail"]
+
+
+def test_index_multipart_upload_requires_scope(client):  # type: ignore[no-untyped-def]
+    resp = client.post(
+        "/api/search/index",
+        files={"file": ("upload.pdf", b"%PDF-1.4\n", "application/pdf")},
+    )
+    assert resp.status_code == 400
+    assert "upload_scope" in resp.json()["detail"]
+
+
+def test_uploaded_document_id_uses_content_hash_and_scope() -> None:
+    from workshop.routers.ais import _index_document_source
+    from workshop.routers.documents import DocumentSource
+
+    async def run() -> tuple[str, str]:
+        from unittest.mock import AsyncMock, patch
+
+        async def analyze(_analyzer_id, _content, _filename, _fields):  # type: ignore[no-untyped-def]
+            return {
+                "result": {"fields": {}, "content": "body"},
+                "trace": {"duration_ms": 1, "response": {"status": 200}},
+            }
+
+        with (
+            patch("workshop.routers.ais.cu_service.analyze_custom", AsyncMock(side_effect=analyze)),
+            patch(
+                "workshop.routers.ais.ais_service.index_document",
+                AsyncMock(return_value={"result": {"indexed": 1, "total": 1}, "trace": {}}),
+            ),
+        ):
+            first = await _index_document_source(
+                DocumentSource(
+                    content=b"one",
+                    filename="same.pdf",
+                    id_source="upload:same.pdf:hash-one",
+                    source_type="upload",
+                ),
+                [],
+                "scope-a",
+            )
+            second = await _index_document_source(
+                DocumentSource(
+                    content=b"one",
+                    filename="same.pdf",
+                    id_source="upload:same.pdf:hash-one",
+                    source_type="upload",
+                ),
+                [],
+                "scope-b",
+            )
+        return first["result"]["document_id"], second["result"]["document_id"]
+
+    import asyncio
+
+    first_id, second_id = asyncio.run(run())
+    assert first_id != second_id
 
 
 def test_ensure_index_returns_error_trace(client):  # type: ignore[no-untyped-def]

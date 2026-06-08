@@ -1,5 +1,9 @@
 import { Route } from "@playwright/test";
+import path from "path";
 import { test, expect } from "./helpers";
+
+const uploadFixturePath = path.join(process.cwd(), "samples", "invoice.pdf");
+const batchUploadFixturePath = path.join(process.cwd(), "samples", "purchase-order.pdf");
 
 // --- Mock response fixtures ---
 
@@ -313,6 +317,67 @@ test.describe("Module 1 — Analysis Workflow", () => {
       page.getByText("No typed fields is the expected outcome here.")
     ).toBeVisible();
   });
+
+  test("uploaded document is sent as multipart form data", async ({
+    page, consoleErrors,
+  }) => {
+    await page.route("**/api/di/layout", (route) =>
+      mockRoute(route, mockDILayoutResult)
+    );
+    await page.route("**/api/cu/layout", (route) =>
+      mockRoute(route, mockCULayoutResult)
+    );
+    await page.route("**/api/di/prebuilt/*", (route) =>
+      mockRoute(route, mockDIPrebuiltResult)
+    );
+
+    await page.goto("/module/1");
+    await page.getByLabel("Choose file").setInputFiles(uploadFixturePath);
+    await expect(page.getByText("Selected:")).toBeVisible();
+
+    const uploadRequestPromise = page.waitForRequest(
+      (request) =>
+        request.url().endsWith("/api/di/layout") && request.method() === "POST"
+    );
+
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
+    const uploadRequest = await uploadRequestPromise;
+    expect(uploadRequest.headers()["content-type"]).toContain("multipart/form-data");
+
+    await expect(
+      page.getByText("Document Intelligence — Layout")
+    ).toBeVisible();
+    await expect(page.getByText("Analysis Failed")).not.toBeVisible();
+  });
+
+  test("uploaded CU markdown is sanitized before rendering", async ({
+    page, consoleErrors,
+  }) => {
+    await page.route("**/api/di/layout", (route) =>
+      mockRoute(route, mockDILayoutResult)
+    );
+    await page.route("**/api/cu/layout", (route) =>
+      mockRoute(route, {
+        result: {
+          content: "<img src=x onerror=\"console.error('xss')\"># Safe content",
+          contents: [{ markdown: "<img src=x onerror=\"console.error('xss')\"># Safe content" }],
+        },
+        trace: mockCULayoutResult.trace,
+      })
+    );
+    await page.route("**/api/di/prebuilt/*", (route) =>
+      mockRoute(route, mockDIPrebuiltResult)
+    );
+
+    await page.goto("/module/1");
+    await page.getByLabel("Choose file").setInputFiles(uploadFixturePath);
+    await page.getByRole("button", { name: /Run Analysis/i }).click();
+
+    await expect(page.getByText("Content Understanding — Layout")).toBeVisible();
+    const rendered = page.locator("[x-ref='cuRendered']");
+    await expect(rendered.getByText("Safe content")).toBeVisible();
+    await expect(rendered.locator("img[src='x']")).toHaveCount(0);
+  });
 });
 
 // ============================================================
@@ -343,6 +408,35 @@ test.describe("Module 2 — Analysis Workflow", () => {
     const cuHeading = page.getByText("CU — Semantic Extraction").first();
     const cuResultPanel = cuHeading.locator("..").locator("..");
     await expect(cuResultPanel.getByText("summary").first()).toBeVisible();
+    await expect(page.getByText("Analysis Failed")).not.toBeVisible();
+  });
+
+  test("uploaded document is sent to CU custom as multipart form data", async ({
+    page, consoleErrors,
+  }) => {
+    await page.route("**/api/di/layout", (route) =>
+      mockRoute(route, mockDILayoutResult)
+    );
+    await page.route("**/api/cu/custom", (route) =>
+      mockRoute(route, mockCUCustomResult)
+    );
+
+    await page.goto("/module/2");
+    await page.getByLabel("Choose file").setInputFiles(uploadFixturePath);
+    await expect(page.getByText("Selected:")).toBeVisible();
+
+    const cuRequestPromise = page.waitForRequest(
+      (request) =>
+        request.url().endsWith("/api/cu/custom") && request.method() === "POST"
+    );
+
+    await page.getByRole("button", { name: /Compare|Analyze|Run/i }).click();
+    const cuRequest = await cuRequestPromise;
+    expect(cuRequest.headers()["content-type"]).toContain("multipart/form-data");
+
+    await expect(
+      page.getByText("CU — Semantic Extraction").first()
+    ).toBeVisible();
     await expect(page.getByText("Analysis Failed")).not.toBeVisible();
   });
 });
@@ -511,5 +605,59 @@ test.describe("Module 4 — Batch Workflow", () => {
     await traceDetails.locator("summary").click();
     await expect(traceDetails.getByText("CU Trace")).toBeVisible();
     await expect(traceDetails.getByText("Search Trace")).toBeVisible();
+  });
+
+  test("batch run with uploaded files uses multipart form data", async ({
+    page,
+    consoleErrors,
+  }) => {
+    await page.route("**/api/batch/process", async (route) => {
+      await delay(250);
+      await mockRoute(route, {
+        result: {
+          documents: [
+            ...mockBatchResult.result.documents,
+            {
+              sample: "invoice.pdf",
+              source_type: "upload",
+              document_id: "doc-upload-001",
+              cu_fields: {
+                summary: "Uploaded invoice for consulting services.",
+                key_topics: "invoice, upload",
+              },
+              cu_duration_ms: 1200,
+              search_duration_ms: 60,
+              cu_trace: { response_status: 200, duration_ms: 1200 },
+              search_trace: { response_status: 200, duration_ms: 60 },
+            },
+          ],
+          summary: {
+            total: 4,
+            succeeded: 4,
+            failed: 0,
+            total_cu_ms: 7000,
+            total_search_ms: 357,
+            total_ms: 7357,
+          },
+        },
+        trace: mockBatchResult.trace,
+      });
+    });
+
+    await page.goto("/module/4");
+    await page.getByLabel("Add files").setInputFiles(batchUploadFixturePath);
+    await expect(page.getByText("Upload:")).toBeVisible();
+
+    const batchRequestPromise = page.waitForRequest(
+      (request) =>
+        request.url().endsWith("/api/batch/process") && request.method() === "POST"
+    );
+
+    await page.getByRole("button", { name: /Run Batch Pipeline/i }).click();
+    const batchRequest = await batchRequestPromise;
+    expect(batchRequest.headers()["content-type"]).toContain("multipart/form-data");
+
+    await expect(page.getByText("Batch Complete")).toBeVisible();
+    await expect(page.getByText("Uploaded invoice for consulting services.")).toBeVisible();
   });
 });

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -51,6 +52,61 @@ async def test_batch_deduplicates_samples(client: AsyncClient) -> None:
         )
     assert resp.status_code == 200
     mock_process.assert_called_once_with(["a.pdf"])
+
+
+@pytest.mark.asyncio
+async def test_batch_accepts_mixed_samples_and_uploads(client: AsyncClient) -> None:
+    """Multipart batch requests can include samples plus uploaded files."""
+    mock_process = AsyncMock(
+        return_value={
+            "result": {
+                "documents": [{"sample": "contract.pdf"}, {"sample": "upload.pdf"}],
+                "summary": {"total": 2, "succeeded": 2, "failed": 0},
+            },
+            "trace": {},
+        }
+    )
+    with patch("workshop.routers.batch.batch_service.process_batch_items", mock_process):
+        resp = await client.post(
+            "/api/batch/process",
+            data={"samples": json.dumps(["contract.pdf"]), "upload_scope": "test-scope"},
+            files={"files": ("upload.pdf", b"%PDF-1.4\n", "application/pdf")},
+        )
+
+    assert resp.status_code == 200
+    args = mock_process.call_args.args[0]
+    assert args[0] == "contract.pdf"
+    assert args[1].filename == "upload.pdf"
+    assert args[1].source_type == "upload"
+    assert mock_process.call_args.args[1] == "test-scope"
+
+
+@pytest.mark.asyncio
+async def test_batch_multipart_rejects_oversize_upload(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/api/batch/process",
+        data={"upload_scope": "test-scope"},
+        files={"files": ("large.pdf", b"x" * (10 * 1024 * 1024 + 1), "application/pdf")},
+    )
+    assert resp.status_code == 413
+
+
+@pytest.mark.asyncio
+async def test_batch_multipart_upload_requires_scope(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/api/batch/process",
+        files={"files": ("upload.pdf", b"%PDF-1.4\n", "application/pdf")},
+    )
+    assert resp.status_code == 400
+    assert "upload_scope" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_batch_multipart_rejects_too_many_uploads(client: AsyncClient) -> None:
+    files = [("files", (f"upload-{i}.pdf", b"%PDF-1.4\n", "application/pdf")) for i in range(21)]
+    resp = await client.post("/api/batch/process", files=files)
+    assert resp.status_code == 400
+    assert "exceeds maximum" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio

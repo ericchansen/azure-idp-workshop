@@ -1,5 +1,8 @@
 import { Route } from "@playwright/test";
+import path from "path";
 import { test, expect } from "./helpers";
+
+const uploadFixturePath = path.join(process.cwd(), "samples", "invoice.pdf");
 
 function mockJsonRoute(
   route: Route,
@@ -43,7 +46,7 @@ const initialStats = {
 const ensureIndexResult = {
   result: {
     name: "workshop-search",
-    fields: 7,
+    fields: 9,
   },
   trace: {
     url: "https://test.search.windows.net/indexes/workshop-search",
@@ -216,6 +219,46 @@ test.describe("Module 3 — Search Workflow", () => {
     await expect(traces.getByText("Search Trace")).toBeVisible();
   });
 
+  test("uploading and indexing a document sends multipart form data", async ({
+    page,
+    consoleErrors,
+  }) => {
+    await page.route("**/api/search/ensure-index", (route) =>
+      mockJsonRoute(route, ensureIndexResult)
+    );
+    await page.route("**/api/search/index", async (route) => {
+      await delay(250);
+      await mockJsonRoute(route, {
+        ...indexContractResult,
+        result: {
+          ...indexContractResult.result,
+          document_id: "doc-upload-001",
+          source_doc: "invoice.pdf",
+          source_type: "upload",
+        },
+      });
+    });
+
+    await page.goto("/module/3");
+    await page.getByLabel("Choose file").setInputFiles(uploadFixturePath);
+    await expect(page.getByText("Selected:")).toBeVisible();
+
+    const indexButton = page.getByRole("button", { name: /Enrich & Index Document/i });
+    await expect(indexButton).toBeEnabled();
+
+    const indexRequestPromise = page.waitForRequest(
+      (request) =>
+        request.url().endsWith("/api/search/index") && request.method() === "POST"
+    );
+
+    await indexButton.click();
+    const indexRequest = await indexRequestPromise;
+    expect(indexRequest.headers()["content-type"]).toContain("multipart/form-data");
+
+    await expect(page.getByText("✅ Document Indexed")).toBeVisible();
+    await expect(page.getByText("doc-upload-001")).toBeVisible();
+  });
+
   test("indexing failure shows the actual server error instead of a JSON parse error", async ({
     page,
     consoleErrors,
@@ -258,11 +301,14 @@ test.describe("Module 3 — Search Workflow", () => {
     await page.getByRole("button", { name: /Search/ }).click();
 
     const searchRequest = await searchRequestPromise;
-    expect(searchRequest.postDataJSON()).toEqual({
+    const searchPayload = searchRequest.postDataJSON();
+    expect(searchPayload).toEqual({
       query: "service agreement obligations",
       top: 5,
       use_semantic: true,
+      upload_scope: expect.any(String),
     });
+    expect(searchPayload.upload_scope.length).toBeGreaterThan(10);
 
     await expect(page.getByText("🔎 Results — 2 hit(s)")).toBeVisible();
 

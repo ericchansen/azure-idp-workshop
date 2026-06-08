@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 
 def test_cu_layout_requires_file_or_sample(client):  # type: ignore[no-untyped-def]
     resp = client.post("/api/cu/layout")
@@ -57,3 +59,30 @@ def test_cu_custom_nonexistent_sample_returns_404(client):  # type: ignore[no-un
     )
     assert resp.status_code == 404
     assert "not found" in resp.json()["detail"].lower()
+
+
+def test_cu_custom_accepts_multipart_upload(client):  # type: ignore[no-untyped-def]
+    """CU custom accepts an uploaded file plus JSON field definitions."""
+    import pytest
+
+    with pytest.raises(RuntimeError, match="AI_SERVICES_ENDPOINT"):
+        client.post(
+            "/api/cu/custom",
+            data={
+                "fields": json.dumps(
+                    [{"name": "summary", "type": "string", "description": "A summary"}]
+                ),
+                "analyzer_id": "workshopUpload",
+            },
+            files={"file": ("upload.pdf", b"%PDF-1.4\n", "application/pdf")},
+        )
+
+
+def test_cu_custom_multipart_rejects_invalid_fields(client):  # type: ignore[no-untyped-def]
+    resp = client.post(
+        "/api/cu/custom",
+        data={"fields": "not-json", "analyzer_id": "workshopUpload"},
+        files={"file": ("upload.pdf", b"%PDF-1.4\n", "application/pdf")},
+    )
+    assert resp.status_code == 400
+    assert "valid JSON" in resp.json()["detail"]

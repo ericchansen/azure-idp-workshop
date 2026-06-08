@@ -6,42 +6,20 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, UploadFile
 
-from workshop.routers.documents import get_file_bytes
+from workshop.routers.documents import get_file_bytes, validate_document_extension
 from workshop.services import document_intelligence as di_service
 
 router = APIRouter(prefix="/api/di", tags=["document-intelligence"])
 
-# Formats supported by Azure DI Layout API
-DI_SUPPORTED_EXTENSIONS = {
-    ".pdf",
-    ".jpeg",
-    ".jpg",
-    ".png",
-    ".bmp",
-    ".tiff",
-    ".tif",
-    ".heif",
-    ".heic",
-    ".docx",
-    ".xlsx",
-    ".pptx",
-    ".html",
-}
-
 
 def _validate_format(filename: str) -> None:
     """Raise 400 if the file format is not supported by Document Intelligence."""
-    import os
-
-    ext = os.path.splitext(filename)[1].lower()
-    if ext and ext not in DI_SUPPORTED_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Document Intelligence does not support '{ext}' files. "
-                f"Supported formats: PDF, JPEG, PNG, BMP, TIFF, HEIF, DOCX, XLSX, PPTX, HTML."
-            ),
-        )
+    try:
+        validate_document_extension(filename, service_name="Document Intelligence")
+    except HTTPException as err:
+        if filename.rsplit(".", 1)[-1] == filename:
+            return
+        raise err
 
 
 @router.post("/layout")
