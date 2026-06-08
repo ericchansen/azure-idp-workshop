@@ -301,6 +301,9 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
     ],
     diResult: null, cuResult: null, prebuiltResult: null,
     loading: false, selectedSample: '',
+    sourceMode: 'sample', uploadedFile: null, uploadError: '', uploadPreviewUrl: null,
+    uploadLimitBytes: 10 * 1024 * 1024,
+    acceptedExtensions: ['.pdf', '.jpeg', '.jpg', '.png', '.bmp', '.tiff', '.tif', '.heif', '.heic', '.docx', '.xlsx', '.pptx', '.html'],
     diDone: false, cuDone: false, prebuiltDone: false,
     startTime: null, elapsed: '0.0', timer: null,
     hasError(r) { return r?.error || r?.trace?.error },
@@ -317,22 +320,81 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
     get hasNativePrebuiltModel() {
         return this.prebuiltModel !== 'prebuilt-layout';
     },
+    get selectedFilename() {
+        return this.sourceMode === 'upload' ? (this.uploadedFile?.name || '') : this.selectedSample;
+    },
+    get canAnalyze() {
+        return this.sourceMode === 'upload' ? !!this.uploadedFile && !this.uploadError : !!this.selectedSample;
+    },
+    selectSample(name) {
+        this.sourceMode = 'sample';
+        this.selectedSample = name;
+        this.clearUpload();
+    },
+    clearUpload() {
+        if (this.uploadPreviewUrl) URL.revokeObjectURL(this.uploadPreviewUrl);
+        this.uploadedFile = null;
+        this.uploadError = '';
+        this.uploadPreviewUrl = null;
+    },
+    handleUpload(event) {
+        const file = event.target.files?.[0];
+        this.clearUpload();
+        if (!file) return;
+        const ext = file.name.includes('.') ? '.' + file.name.split('.').pop().toLowerCase() : '';
+        if (!this.acceptedExtensions.includes(ext)) {
+            this.uploadError = 'Unsupported file type. Use PDF, image, Office, or HTML documents.';
+            return;
+        }
+        if (file.size > this.uploadLimitBytes) {
+            this.uploadError = 'File exceeds the 10 MB upload limit.';
+            return;
+        }
+        this.sourceMode = 'upload';
+        this.selectedSample = '';
+        this.uploadedFile = file;
+        if (file.type === 'application/pdf' || file.type.startsWith('image/')) {
+            this.uploadPreviewUrl = URL.createObjectURL(file);
+        }
+    },
+    buildDocumentRequest(url) {
+        if (this.sourceMode === 'upload') {
+            const form = new FormData();
+            form.append('file', this.uploadedFile);
+            return fetch(url, { method: 'POST', body: form });
+        }
+        return fetch(url + '?sample=' + encodeURIComponent(this.selectedSample), { method: 'POST' });
+    },
+    isPreviewImage() {
+        const name = this.selectedFilename.toLowerCase();
+        return this.sourceMode === 'upload'
+            ? this.uploadedFile?.type?.startsWith('image/')
+            : name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg');
+    },
+    isPreviewPdf() {
+        return this.selectedFilename.toLowerCase().endsWith('.pdf');
+    },
+    previewSrc() {
+        return this.sourceMode === 'upload'
+            ? this.uploadPreviewUrl
+            : '/api/documents/samples/' + this.selectedSample + '/raw';
+    },
     startAnalysis() {
-        if (!this.selectedSample) return;
+        if (!this.canAnalyze) return;
         this.loading = true;
         this.diResult = null; this.cuResult = null; this.prebuiltResult = null;
         this.diDone = false; this.cuDone = false; this.prebuiltDone = false;
         this.startTime = Date.now();
         this.timer = setInterval(() => { this.elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1); }, 100);
-        fetch('/api/di/layout?sample=' + this.selectedSample, { method: 'POST' })
+        this.buildDocumentRequest('/api/di/layout')
             .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t || 'HTTP ' + r.status) }); return r.json(); })
             .then(d => { this.diResult = d; this.diDone = true; this.checkDone(); })
             .catch(e => { this.diResult = { error: e.message }; this.diDone = true; this.checkDone(); });
-        fetch('/api/cu/layout?sample=' + this.selectedSample, { method: 'POST' })
+        this.buildDocumentRequest('/api/cu/layout')
             .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t || 'HTTP ' + r.status) }); return r.json(); })
             .then(d => { this.cuResult = d; this.cuDone = true; this.checkDone(); })
             .catch(e => { this.cuResult = { error: e.message }; this.cuDone = true; this.checkDone(); });
-        fetch('/api/di/prebuilt/' + this.prebuiltModel + '?sample=' + this.selectedSample, { method: 'POST' })
+        this.buildDocumentRequest('/api/di/prebuilt/' + this.prebuiltModel)
             .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t || 'HTTP ' + r.status) }); return r.json(); })
             .then(d => { this.prebuiltResult = d; this.prebuiltDone = true; this.checkDone(); })
             .catch(e => { this.prebuiltResult = { error: e.message }; this.prebuiltDone = true; this.checkDone(); });
@@ -367,8 +429,8 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
         <h2 class="text-lg font-semibold mb-4">📄 Choose a Document</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             <template x-for="sample in samples" :key="sample.name">
-                <button @click="selectedSample = sample.name"
-                    :class="selectedSample === sample.name ? 'ring-2 ring-blue-500 bg-blue-50 border-blue-300' : 'bg-gray-50 hover:bg-gray-100 border-gray-200'"
+                <button @click="selectSample(sample.name)"
+                    :class="sourceMode === 'sample' && selectedSample === sample.name ? 'ring-2 ring-blue-500 bg-blue-50 border-blue-300' : 'bg-gray-50 hover:bg-gray-100 border-gray-200'"
                     class="border rounded-xl px-4 py-3 text-left transition-all">
                     <div class="flex items-start justify-between gap-3">
                         <div>
@@ -383,6 +445,27 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
                     </div>
                 </button>
             </template>
+        </div>
+        <div class="mt-4 border-2 border-dashed rounded-xl p-4"
+             :class="sourceMode === 'upload' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                    <h3 class="font-semibold text-sm text-gray-900">Upload your own document</h3>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Ephemeral request only. Max 10 MB. Supports PDF, images, Office documents, and HTML.
+                    </p>
+                    <p x-show="uploadedFile" class="text-xs text-blue-700 mt-2">
+                        Selected: <span class="font-mono" x-text="uploadedFile?.name"></span>
+                    </p>
+                    <p x-show="uploadError" class="text-xs text-red-700 mt-2" x-text="uploadError"></p>
+                </div>
+                <label class="inline-flex items-center justify-center px-4 py-2 bg-white border border-blue-200 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-50 cursor-pointer">
+                    Choose file
+                    <input type="file" class="sr-only"
+                           accept=".pdf,.jpeg,.jpg,.png,.bmp,.tiff,.tif,.heif,.heic,.docx,.xlsx,.pptx,.html"
+                           @change="handleUpload($event)" />
+                </label>
+            </div>
         </div>
         <!-- What to look for -->
         <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
@@ -405,7 +488,7 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
                 <p class="text-xs text-sky-700 mt-2" x-text="selectedDoc.comparisonHint"></p>
             </div>
         </template>
-        <button @click="startAnalysis()" :disabled="!selectedSample || loading"
+        <button @click="startAnalysis()" :disabled="!canAnalyze || loading"
             class="mt-4 px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
             <span x-show="!loading">▶️ Run Analysis — Compare DI vs CU</span>
             <span x-show="loading" class="flex items-center gap-2">
@@ -435,19 +518,25 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
     </div>
 
     <!-- Document Preview -->
-    <div x-show="selectedSample" x-transition class="bg-white rounded-lg shadow p-6 mb-6">
+    <div x-show="canAnalyze" x-transition class="bg-white rounded-lg shadow p-6 mb-6">
         <h2 class="text-lg font-semibold mb-2">
             👁️ Source Document
-            <span x-show="selectedDoc" class="text-base font-normal text-gray-500" x-text="selectedDoc ? '- ' + selectedDoc.label : ''"></span>
+            <span class="text-base font-normal text-gray-500" x-text="selectedDoc ? '- ' + selectedDoc.label : '- ' + selectedFilename"></span>
         </h2>
         <p x-show="selectedDoc" class="text-sm text-gray-500 mb-3" x-text="selectedDoc ? selectedDoc.note : ''"></p>
+        <p x-show="sourceMode === 'upload'" class="text-sm text-amber-700 mb-3">
+            Uploaded files are analyzed from this browser request and are not stored by the workshop app.
+        </p>
         <div class="border rounded-lg overflow-hidden bg-gray-100 flex justify-center" style="max-height: 400px;">
-            <img x-show="selectedSample.endsWith('.png') || selectedSample.endsWith('.jpg')"
-                 :src="selectedSample ? '/api/documents/samples/' + selectedSample + '/raw' : null"
+            <img x-show="isPreviewImage()"
+                 :src="isPreviewImage() ? previewSrc() : null"
                  class="max-h-96 object-contain" alt="Document preview" />
-            <iframe x-show="selectedSample.endsWith('.pdf')"
-                    :src="selectedSample && selectedSample.endsWith('.pdf') ? '/api/documents/samples/' + selectedSample + '/raw' : null"
+            <iframe x-show="isPreviewPdf()"
+                    :src="isPreviewPdf() ? previewSrc() : null"
                     class="w-full" style="height: 400px;" title="PDF preview"></iframe>
+            <div x-show="!isPreviewImage() && !isPreviewPdf()" class="p-8 text-center text-sm text-gray-600">
+                Preview is not available for this file type. The file will still be sent to the analysis APIs.
+            </div>
         </div>
     </div>
 
@@ -557,7 +646,7 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
                                 class="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200">{ } Raw</button>
                         </div>
                         <div x-ref="cuRendered" class="rendered-md bg-gray-50 p-3 rounded overflow-auto max-h-80"
-                             x-html="typeof marked !== 'undefined' && cuResult.result?.content ? marked.parse(cuResult.result.content.substring(0, 3000)) : (cuResult.result?.content?.substring(0, 3000) || 'No content')"></div>
+                             x-html="safeMarkdown(cuResult.result?.content)"></div>
                         <pre x-ref="cuRaw" class="hidden bg-gray-50 p-3 rounded text-xs overflow-auto max-h-80"
                              x-text="JSON.stringify(cuResult.result, null, 2)?.substring(0, 5000)"></pre>
                     </div>

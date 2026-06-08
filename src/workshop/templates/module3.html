@@ -173,6 +173,10 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
 <div x-data="{
     indexing: false, searching: false,
     selectedSample: '', indexResult: null, searchResult: null,
+    sourceMode: 'sample', uploadedFile: null, uploadError: '',
+    uploadScope: '',
+    uploadLimitBytes: 10 * 1024 * 1024,
+    acceptedExtensions: ['.pdf', '.jpeg', '.jpg', '.png', '.bmp', '.tiff', '.tif', '.heif', '.heic', '.docx', '.xlsx', '.pptx', '.html'],
     searchQuery: '', statsResult: null, statsTimeout: null,
     indexDone: false, startTime: null, elapsed: '0.0', timer: null,
     hasError(r) { return r?.error || r?.trace?.error || r?.trace?.cu?.error || r?.trace?.search?.error },
@@ -183,8 +187,60 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
         if (r?.trace?.search?.error) return r.trace.search.error;
         return 'Unknown error';
     },
+    ensureUploadScope() {
+        let scope = localStorage.getItem('workshopUploadScope');
+        if (!scope) {
+            scope = (window.crypto?.randomUUID?.() || ('scope-' + Math.random().toString(36).slice(2) + Date.now().toString(36)));
+            localStorage.setItem('workshopUploadScope', scope);
+        }
+        this.uploadScope = scope;
+        return scope;
+    },
+    get selectedFilename() {
+        return this.sourceMode === 'upload' ? (this.uploadedFile?.name || '') : this.selectedSample;
+    },
+    get canIndex() {
+        return this.sourceMode === 'upload' ? !!this.uploadedFile && !this.uploadError : !!this.selectedSample;
+    },
+    selectSample(name) {
+        this.sourceMode = 'sample';
+        this.selectedSample = name;
+        this.uploadedFile = null;
+        this.uploadError = '';
+    },
+    handleUpload(event) {
+        const file = event.target.files?.[0];
+        this.uploadedFile = null;
+        this.uploadError = '';
+        if (!file) return;
+        const ext = file.name.includes('.') ? '.' + file.name.split('.').pop().toLowerCase() : '';
+        if (!this.acceptedExtensions.includes(ext)) {
+            this.uploadError = 'Unsupported file type. Use PDF, image, Office, or HTML documents.';
+            return;
+        }
+        if (file.size > this.uploadLimitBytes) {
+            this.uploadError = 'File exceeds the 10 MB upload limit.';
+            return;
+        }
+        this.sourceMode = 'upload';
+        this.selectedSample = '';
+        this.uploadedFile = file;
+    },
+    buildIndexRequest() {
+        if (this.sourceMode === 'upload') {
+            const form = new FormData();
+            form.append('file', this.uploadedFile);
+            form.append('upload_scope', this.ensureUploadScope());
+            return fetch('/api/search/index', { method: 'POST', body: form });
+        }
+        return fetch('/api/search/index', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sample: this.selectedSample })
+        });
+    },
     async ensureAndIndex() {
-        if (!this.selectedSample) return;
+        if (!this.canIndex) return;
         this.indexing = true; this.indexResult = null;
         this.startTime = Date.now();
         this.timer = setInterval(() => { this.elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1); }, 100);
@@ -195,11 +251,7 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
             if (!ensureResp.ok) { const t = await ensureResp.text(); throw new Error(t || 'HTTP ' + ensureResp.status); }
 
             // Index the document (CU enrichment + push)
-            const resp = await fetch('/api/search/index', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sample: this.selectedSample })
-            });
+            const resp = await this.buildIndexRequest();
             if (!resp.ok) { const t = await resp.text(); throw new Error(t || 'HTTP ' + resp.status); }
             this.indexResult = await resp.json();
         } catch (e) {
@@ -217,7 +269,7 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
             const resp = await fetch('/api/search/query', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: this.searchQuery, top: 5, use_semantic: true })
+                body: JSON.stringify({ query: this.searchQuery, top: 5, use_semantic: true, upload_scope: this.ensureUploadScope() })
             });
             if (!resp.ok) { const t = await resp.text(); throw new Error(t || 'HTTP ' + resp.status); }
             this.searchResult = await resp.json();
@@ -232,7 +284,7 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
             if (resp.ok) this.statsResult = await resp.json();
         } catch (e) { /* ignore */ }
     }
-}" x-init="refreshStats()" x-cloak>
+}" x-init="ensureUploadScope(); refreshStats()" x-cloak>
 
     <!-- Step 1: Index a document -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
@@ -241,21 +293,42 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
             Select a document. CU will extract a summary and key topics, then push the enriched document to Azure AI Search.
         </p>
         <div class="flex flex-wrap gap-3 mb-4">
-            <button @click="selectedSample = 'contract.pdf'"
-                :class="selectedSample === 'contract.pdf' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-gray-100 hover:bg-gray-200'"
+            <button @click="selectSample('contract.pdf')"
+                :class="sourceMode === 'sample' && selectedSample === 'contract.pdf' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-gray-100 hover:bg-gray-200'"
                 class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 📜 Contract (PDF)
             </button>
-            <button @click="selectedSample = 'invoice.pdf'"
-                :class="selectedSample === 'invoice.pdf' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-gray-100 hover:bg-gray-200'"
+            <button @click="selectSample('invoice.pdf')"
+                :class="sourceMode === 'sample' && selectedSample === 'invoice.pdf' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-gray-100 hover:bg-gray-200'"
                 class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 📄 Invoice (PDF)
             </button>
-            <button @click="selectedSample = 'receipt.png'"
-                :class="selectedSample === 'receipt.png' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-gray-100 hover:bg-gray-200'"
+            <button @click="selectSample('receipt.png')"
+                :class="sourceMode === 'sample' && selectedSample === 'receipt.png' ? 'ring-2 ring-indigo-500 bg-indigo-50' : 'bg-gray-100 hover:bg-gray-200'"
                 class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 🧾 Receipt (PNG)
             </button>
+        </div>
+        <div class="border-2 border-dashed rounded-xl p-4 mb-4"
+             :class="sourceMode === 'upload' ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-gray-50'">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                    <h3 class="font-semibold text-sm text-gray-900">Upload and index your own document</h3>
+                    <p class="text-xs text-amber-700 mt-1">
+                        Module 3 writes extracted content and metadata into Azure AI Search. Raw uploaded files are not stored by the app.
+                    </p>
+                    <p x-show="uploadedFile" class="text-xs text-indigo-700 mt-2">
+                        Selected: <span class="font-mono" x-text="uploadedFile?.name"></span>
+                    </p>
+                    <p x-show="uploadError" class="text-xs text-red-700 mt-2" x-text="uploadError"></p>
+                </div>
+                <label class="inline-flex items-center justify-center px-4 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-50 cursor-pointer">
+                    Choose file
+                    <input type="file" class="sr-only"
+                           accept=".pdf,.jpeg,.jpg,.png,.bmp,.tiff,.tif,.heif,.heic,.docx,.xlsx,.pptx,.html"
+                           @change="handleUpload($event)" />
+                </label>
+            </div>
         </div>
 
         <!-- Index stats badge -->
@@ -274,7 +347,7 @@ curl "https://&lt;search-service&gt;.search.windows.net/indexes/documents/docs/s
             </ul>
         </div>
 
-        <button @click="ensureAndIndex()" :disabled="!selectedSample || indexing"
+        <button @click="ensureAndIndex()" :disabled="!canIndex || indexing"
             class="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
             <span x-show="!indexing">📥 Enrich & Index Document</span>
             <span x-show="indexing" class="flex items-center gap-2">

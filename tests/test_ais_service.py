@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 from azure.core.exceptions import HttpResponseError
 
 from workshop.services.ai_search import (
+    _build_visibility_filter,
     build_document_id,
     ensure_index,
     get_index_stats,
@@ -22,13 +23,13 @@ async def test_ensure_index_success(mock_get_client: MagicMock) -> None:
     """Successful index creation returns name + field count."""
     mock_result = MagicMock()
     mock_result.name = "workshop-index"
-    mock_result.fields = [MagicMock()] * 7  # 7 fields in schema
+    mock_result.fields = [MagicMock()] * 9  # 9 fields in schema
     mock_get_client.return_value.create_or_update_index.return_value = mock_result
 
     result = await ensure_index()
 
     assert result["result"]["name"] == "workshop-index"
-    assert result["result"]["fields"] == 7
+    assert result["result"]["fields"] == 9
     assert result["trace"]["response"]["status"] == 200
     assert result["trace"]["duration_ms"] >= 0
 
@@ -159,6 +160,17 @@ async def test_search_documents_success(mock_get_client: MagicMock) -> None:
     assert result["result"]["hits"][0]["key_topics"] == "billing, payment"
     assert result["result"]["hits"][0]["score"] == 0.95
     assert result["result"]["total"] == 1
+    assert (
+        mock_get_client.return_value.search.call_args.kwargs["filter"] == "source_type eq 'sample'"
+    )
+
+
+def test_build_visibility_filter_includes_upload_scope() -> None:
+    assert _build_visibility_filter(None) == "source_type eq 'sample'"
+    assert (
+        _build_visibility_filter("abc'123")
+        == "source_type eq 'sample' or upload_scope eq 'abc''123'"
+    )
 
 
 @patch("workshop.services.ai_search._get_search_client")
@@ -173,6 +185,40 @@ async def test_search_documents_no_count_fallback(mock_get_client: MagicMock) ->
     result = await search_documents("test")
 
     assert result["result"]["total"] == 1  # falls back to len(hits)
+
+
+@patch("workshop.services.ai_search._backfill_sample_source_metadata")
+@patch("workshop.services.ai_search._get_index_client")
+@patch("workshop.services.ai_search._get_search_client")
+async def test_search_documents_ensures_old_index_and_retries(
+    mock_search_client: MagicMock,
+    mock_index_client: MagicMock,
+    mock_backfill: MagicMock,
+) -> None:
+    """Missing filter fields trigger one ensure-index migration and retry."""
+    first_error = HttpResponseError(
+        message="Invalid expression: Could not find a property named 'source_type'"
+    )
+    first_error.status_code = 400
+
+    mock_hit = {"id": "doc1", "title": "Contract", "content": "body"}
+    mock_results = MagicMock()
+    mock_results.__iter__ = MagicMock(return_value=iter([mock_hit]))
+    mock_results.get_count.return_value = 1
+    mock_search_client.return_value.search.side_effect = [first_error, mock_results]
+
+    mock_index_result = MagicMock()
+    mock_index_result.name = "workshop-index"
+    mock_index_result.fields = [MagicMock()] * 9
+    mock_index_client.return_value.create_or_update_index.return_value = mock_index_result
+    mock_backfill.return_value = {"attempted": 1, "updated": 1, "failed": 0}
+
+    result = await search_documents("contract")
+
+    assert result["trace"]["response"]["status"] == 200
+    assert result["trace"]["request"]["body"]["retried_after_ensure_index"] is True
+    assert result["result"]["hits"][0]["title"] == "Contract"
+    assert mock_search_client.return_value.search.call_count == 2
 
 
 @patch("workshop.services.ai_search._get_search_client")

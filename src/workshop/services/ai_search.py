@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+from pathlib import Path
 from typing import Any
 
 from azure.core.exceptions import HttpResponseError
@@ -13,6 +14,7 @@ from workshop.config import settings
 from workshop.services.api_trace import ApiTrace, TraceTimer, sanitize_headers
 
 logger = logging.getLogger(__name__)
+SAMPLES_DIR = Path(__file__).resolve().parents[3] / "samples"
 
 
 def build_document_id(source_doc: str) -> str:
@@ -83,6 +85,8 @@ async def ensure_index() -> dict[str, Any]:
                 SearchableField(name="summary", type=SearchFieldDataType.String),
                 SearchableField(name="key_topics", type=SearchFieldDataType.String),
                 SimpleField(name="source_doc", type=SearchFieldDataType.String, filterable=True),
+                SimpleField(name="source_type", type=SearchFieldDataType.String, filterable=True),
+                SimpleField(name="upload_scope", type=SearchFieldDataType.String, filterable=True),
                 SimpleField(
                     name="indexed_at",
                     type=SearchFieldDataType.DateTimeOffset,
@@ -113,6 +117,13 @@ async def ensure_index() -> dict[str, Any]:
             result = await asyncio.to_thread(client.create_or_update_index, index)
             trace.response_status = 200
             result_dict = {"name": result.name, "fields": len(result.fields)}
+            try:
+                result_dict["sample_metadata_backfill"] = await asyncio.to_thread(
+                    _backfill_sample_source_metadata
+                )
+            except Exception as e:
+                logger.warning("Sample metadata backfill failed: %s", e)
+                result_dict["sample_metadata_backfill"] = {"error": f"{type(e).__name__}: {e}"}
             trace.response_body = result_dict
         except HttpResponseError as e:
             trace.error = f"HttpResponseError: {e}"
@@ -177,7 +188,9 @@ async def index_document(doc: dict[str, Any]) -> dict[str, Any]:
     return {"result": result_dict, "trace": trace.to_dict()}
 
 
-async def search_documents(query: str, top: int = 5, use_semantic: bool = True) -> dict[str, Any]:
+async def search_documents(
+    query: str, top: int = 5, use_semantic: bool = True, upload_scope: str | None = None
+) -> dict[str, Any]:
     """Search the index. Returns results + trace."""
     trace = ApiTrace(service="AI-Search", operation="search")
     trace.request_url = f"{settings.ais_endpoint}/indexes/{settings.ais_index_name}/docs/search"
@@ -187,6 +200,7 @@ async def search_documents(query: str, top: int = 5, use_semantic: bool = True) 
         "search": query,
         "top": top,
         "queryType": "semantic" if use_semantic else "simple",
+        "filter": _build_visibility_filter(upload_scope),
     }
 
     with TraceTimer() as timer:
@@ -197,6 +211,7 @@ async def search_documents(query: str, top: int = 5, use_semantic: bool = True) 
                 "search_text": query,
                 "top": top,
                 "include_total_count": True,
+                "filter": _build_visibility_filter(upload_scope),
             }
             if use_semantic:
                 search_kwargs["query_type"] = "semantic"
@@ -206,27 +221,30 @@ async def search_documents(query: str, top: int = 5, use_semantic: bool = True) 
                 return client.search(**search_kwargs)
 
             results = await asyncio.to_thread(_run_search)
-
-            hits = []
-            for r in results:
-                hits.append(
-                    {
-                        "id": r.get("id"),
-                        "title": r.get("title", ""),
-                        "summary": r.get("summary", ""),
-                        "key_topics": r.get("key_topics", ""),
-                        "source_doc": r.get("source_doc", ""),
-                        "score": r.get("@search.score"),
-                        "reranker_score": r.get("@search.reranker_score"),
-                        "content_preview": (r.get("content") or "")[:300],
-                    }
-                )
-            count = results.get_count()
-            total = count if count is not None else len(hits)
+            result_dict = _search_results_to_dict(results, query)
             trace.response_status = 200
-            result_dict = {"hits": hits, "total": total, "query": query}
             trace.response_body = result_dict
         except HttpResponseError as e:
+            if _is_missing_filter_field_error(e):
+                ensure_result = await ensure_index()
+                if not ensure_result.get("trace", {}).get("error"):
+                    try:
+                        results = await asyncio.to_thread(_run_search)
+                        result_dict = _search_results_to_dict(results, query)
+                        trace.request_body["retried_after_ensure_index"] = True
+                        trace.response_status = 200
+                        trace.response_body = result_dict
+                        trace.error = ""
+                    except HttpResponseError as retry_error:
+                        trace.error = f"HttpResponseError: {retry_error}"
+                        trace.response_status = retry_error.status_code or 500
+                        result_dict = {"hits": [], "total": 0, "query": query}
+                    except Exception as retry_error:
+                        trace.error = f"{type(retry_error).__name__}: {retry_error}"
+                        trace.response_status = 500
+                        result_dict = {"hits": [], "total": 0, "query": query}
+                    trace.duration_ms = timer.duration_ms
+                    return {"result": result_dict, "trace": trace.to_dict()}
             trace.error = f"HttpResponseError: {e}"
             trace.response_status = e.status_code or 500
             result_dict = {"hits": [], "total": 0, "query": query}
@@ -237,6 +255,69 @@ async def search_documents(query: str, top: int = 5, use_semantic: bool = True) 
 
     trace.duration_ms = timer.duration_ms
     return {"result": result_dict, "trace": trace.to_dict()}
+
+
+def _search_results_to_dict(results: Any, query: str) -> dict[str, Any]:
+    hits = []
+    for r in results:
+        hits.append(
+            {
+                "id": r.get("id"),
+                "title": r.get("title", ""),
+                "summary": r.get("summary", ""),
+                "key_topics": r.get("key_topics", ""),
+                "source_doc": r.get("source_doc", ""),
+                "score": r.get("@search.score"),
+                "reranker_score": r.get("@search.reranker_score"),
+                "content_preview": (r.get("content") or "")[:300],
+            }
+        )
+    count = results.get_count()
+    total = count if count is not None else len(hits)
+    return {"hits": hits, "total": total, "query": query}
+
+
+def _is_missing_filter_field_error(error: HttpResponseError) -> bool:
+    message = str(error).lower()
+    if "source_type" not in message and "upload_scope" not in message:
+        return False
+    return any(term in message for term in ["could not", "not found", "unknown", "invalid"])
+
+
+def _build_visibility_filter(upload_scope: str | None) -> str:
+    base_filter = "source_type eq 'sample'"
+    if not upload_scope:
+        return base_filter
+    safe_scope = upload_scope.replace("'", "''")
+    return f"{base_filter} or upload_scope eq '{safe_scope}'"
+
+
+def _backfill_sample_source_metadata() -> dict[str, int]:
+    sample_names = _list_sample_names()
+    if not sample_names:
+        return {"attempted": 0, "updated": 0, "failed": 0}
+
+    client = _get_search_client()
+    documents = [
+        {
+            "id": build_document_id(sample),
+            "source_doc": sample,
+            "source_type": "sample",
+            "upload_scope": "",
+        }
+        for sample in sample_names
+    ]
+    results = client.merge_documents(documents=documents)
+    updated = sum(1 for result in results if result.succeeded)
+    return {"attempted": len(documents), "updated": updated, "failed": len(documents) - updated}
+
+
+def _list_sample_names() -> list[str]:
+    if not SAMPLES_DIR.exists():
+        return []
+    return sorted(
+        f.name for f in SAMPLES_DIR.iterdir() if f.is_file() and not f.name.startswith(".")
+    )
 
 
 async def get_index_stats() -> dict[str, Any]:

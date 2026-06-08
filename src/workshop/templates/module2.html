@@ -298,6 +298,9 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
 <div x-data="{
     diResult: null, cuResult: null, loading: false,
     selectedSample: 'contract.pdf',
+    sourceMode: 'sample', uploadedFile: null, uploadError: '', uploadPreviewUrl: null,
+    uploadLimitBytes: 10 * 1024 * 1024,
+    acceptedExtensions: ['.pdf', '.jpeg', '.jpg', '.png', '.bmp', '.tiff', '.tif', '.heif', '.heic', '.docx', '.xlsx', '.pptx', '.html'],
     diDone: false, cuDone: false, startTime: null, elapsed: '0.0', timer: null,
     hasError(r) { return r?.error || r?.trace?.error },
     getError(r) { return r?.error || r?.trace?.error },
@@ -332,19 +335,101 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
             { name: 'payment_terms', type: 'string', description: 'Payment terms (e.g., Net 30)' },
             { name: 'delivery_date', type: 'string', description: 'Expected delivery date' },
         ],
+        'upload': [
+            { name: 'summary', type: 'string', description: 'A 2-3 sentence summary of the document' },
+            { name: 'key_parties', type: 'string', description: 'People, organizations, or departments mentioned' },
+            { name: 'key_dates', type: 'string', description: 'Important dates, deadlines, or effective periods' },
+            { name: 'action_items', type: 'string', description: 'Tasks, obligations, or follow-up actions' },
+            { name: 'risk_level', type: 'string', description: 'Overall risk level: low, medium, or high' },
+        ],
     },
     switchFieldPreset(preset) {
         if (this.fieldPresets[preset]) {
             this.fields = JSON.parse(JSON.stringify(this.fieldPresets[preset]));
         }
     },
+    get selectedFilename() {
+        return this.sourceMode === 'upload' ? (this.uploadedFile?.name || '') : this.selectedSample;
+    },
+    get canAnalyze() {
+        return this.sourceMode === 'upload' ? !!this.uploadedFile && !this.uploadError : !!this.selectedSample;
+    },
+    selectSample(name, preset) {
+        this.sourceMode = 'sample';
+        this.selectedSample = name;
+        this.clearUpload();
+        this.switchFieldPreset(preset);
+    },
+    clearUpload() {
+        if (this.uploadPreviewUrl) URL.revokeObjectURL(this.uploadPreviewUrl);
+        this.uploadedFile = null;
+        this.uploadError = '';
+        this.uploadPreviewUrl = null;
+    },
+    handleUpload(event) {
+        const file = event.target.files?.[0];
+        this.clearUpload();
+        if (!file) return;
+        const ext = file.name.includes('.') ? '.' + file.name.split('.').pop().toLowerCase() : '';
+        if (!this.acceptedExtensions.includes(ext)) {
+            this.uploadError = 'Unsupported file type. Use PDF, image, Office, or HTML documents.';
+            return;
+        }
+        if (file.size > this.uploadLimitBytes) {
+            this.uploadError = 'File exceeds the 10 MB upload limit.';
+            return;
+        }
+        this.sourceMode = 'upload';
+        this.selectedSample = '';
+        this.uploadedFile = file;
+        this.switchFieldPreset('upload');
+        if (file.type === 'application/pdf' || file.type.startsWith('image/')) {
+            this.uploadPreviewUrl = URL.createObjectURL(file);
+        }
+    },
+    buildDocumentRequest(url) {
+        if (this.sourceMode === 'upload') {
+            const form = new FormData();
+            form.append('file', this.uploadedFile);
+            return fetch(url, { method: 'POST', body: form });
+        }
+        return fetch(url + '?sample=' + encodeURIComponent(this.selectedSample), { method: 'POST' });
+    },
+    buildCustomRequest(analyzerId) {
+        if (this.sourceMode === 'upload') {
+            const form = new FormData();
+            form.append('file', this.uploadedFile);
+            form.append('fields', JSON.stringify(this.fields));
+            form.append('analyzer_id', analyzerId);
+            return fetch('/api/cu/custom', { method: 'POST', body: form });
+        }
+        return fetch('/api/cu/custom', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sample: this.selectedSample, fields: this.fields, analyzer_id: analyzerId })
+        });
+    },
+    isPreviewImage() {
+        const name = this.selectedFilename.toLowerCase();
+        return this.sourceMode === 'upload'
+            ? this.uploadedFile?.type?.startsWith('image/')
+            : name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg');
+    },
+    isPreviewPdf() {
+        return this.selectedFilename.toLowerCase().endsWith('.pdf');
+    },
+    previewSrc() {
+        return this.sourceMode === 'upload'
+            ? this.uploadPreviewUrl
+            : '/api/documents/samples/' + this.selectedSample + '/raw';
+    },
     startAnalysis() {
-        if (!this.selectedSample) return;
+        if (!this.canAnalyze) return;
         this.loading = true; this.diResult = null; this.cuResult = null;
         this.diDone = false; this.cuDone = false;
         this.startTime = Date.now();
         this.timer = setInterval(() => { this.elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1); }, 100);
-        fetch('/api/di/layout?sample=' + this.selectedSample, { method: 'POST' })
+        this.buildDocumentRequest('/api/di/layout')
             .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t || 'HTTP ' + r.status) }); return r.json(); })
             .then(d => { this.diResult = d; this.diDone = true; this.checkDone(); })
             .catch(e => { this.diResult = { error: e.message }; this.diDone = true; this.checkDone(); });
@@ -352,11 +437,7 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
         let hash = 0;
         for (let i = 0; i < schema.length; i++) { hash = ((hash << 5) - hash + schema.charCodeAt(i)) | 0; }
         const analyzerId = 'workshop_' + Math.abs(hash).toString(36);
-        fetch('/api/cu/custom', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sample: this.selectedSample, fields: this.fields, analyzer_id: analyzerId })
-        })
+        this.buildCustomRequest(analyzerId)
         .then(r => { if (!r.ok) return r.text().then(t => { throw new Error(t || 'HTTP ' + r.status) }); return r.json(); })
         .then(d => { this.cuResult = d; this.cuDone = true; this.checkDone(); })
         .catch(e => { this.cuResult = { error: e.message }; this.cuDone = true; this.checkDone(); });
@@ -368,22 +449,43 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
     <div class="bg-white rounded-lg shadow p-6 mb-6">
         <h2 class="text-lg font-semibold mb-4">📄 Choose an Unstructured Document</h2>
         <div class="flex flex-wrap gap-3">
-            <button @click="if (selectedSample !== 'contract.pdf') { selectedSample = 'contract.pdf'; switchFieldPreset('contract'); }"
-                :class="selectedSample === 'contract.pdf' ? 'ring-2 ring-purple-500 bg-purple-50' : 'bg-gray-100 hover:bg-gray-200'"
+            <button @click="selectSample('contract.pdf', 'contract')"
+                :class="sourceMode === 'sample' && selectedSample === 'contract.pdf' ? 'ring-2 ring-purple-500 bg-purple-50' : 'bg-gray-100 hover:bg-gray-200'"
                 class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 📜 Contract (PDF)
             </button>
-            <button @click="if (selectedSample !== 'purchase-order.pdf') { selectedSample = 'purchase-order.pdf'; switchFieldPreset('purchase-order'); }"
-                :class="selectedSample === 'purchase-order.pdf' ? 'ring-2 ring-purple-500 bg-purple-50' : 'bg-gray-100 hover:bg-gray-200'"
+            <button @click="selectSample('purchase-order.pdf', 'purchase-order')"
+                :class="sourceMode === 'sample' && selectedSample === 'purchase-order.pdf' ? 'ring-2 ring-purple-500 bg-purple-50' : 'bg-gray-100 hover:bg-gray-200'"
                 class="px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 🧾 Purchase Order (PDF)
             </button>
+        </div>
+        <div class="mt-4 border-2 border-dashed rounded-xl p-4"
+             :class="sourceMode === 'upload' ? 'border-purple-300 bg-purple-50' : 'border-gray-200 bg-gray-50'">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div>
+                    <h3 class="font-semibold text-sm text-gray-900">Upload your own document</h3>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Ephemeral analysis request. Max 10 MB. The generic semantic field preset is applied automatically.
+                    </p>
+                    <p x-show="uploadedFile" class="text-xs text-purple-700 mt-2">
+                        Selected: <span class="font-mono" x-text="uploadedFile?.name"></span>
+                    </p>
+                    <p x-show="uploadError" class="text-xs text-red-700 mt-2" x-text="uploadError"></p>
+                </div>
+                <label class="inline-flex items-center justify-center px-4 py-2 bg-white border border-purple-200 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-50 cursor-pointer">
+                    Choose file
+                    <input type="file" class="sr-only"
+                           accept=".pdf,.jpeg,.jpg,.png,.bmp,.tiff,.tif,.heif,.heic,.docx,.xlsx,.pptx,.html"
+                           @change="handleUpload($event)" />
+                </label>
+            </div>
         </div>
         <p class="text-sm text-gray-500 mt-3">
             DI extracts raw text and detects table structures. CU uses GenAI to infer meaning — fields switch automatically based on document type.
         </p>
         <p class="mt-3 text-xs text-gray-500 italic">Both services run on the same document so you can compare. In production, CU alone handles this type of extraction.</p>
-        <button @click="startAnalysis()" :disabled="!selectedSample || loading"
+        <button @click="startAnalysis()" :disabled="!canAnalyze || loading"
             class="mt-3 px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
             <span x-show="!loading">▶️ Run Analysis — Compare DI vs CU</span>
             <span x-show="loading" class="flex items-center gap-2">
@@ -410,9 +512,17 @@ pip install azure-ai-documentintelligence azure-ai-contentunderstanding azure-id
 
     <!-- Document Preview -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 class="text-lg font-semibold mb-3">👁️ Source Document — <span x-text="selectedSample"></span></h2>
+        <h2 class="text-lg font-semibold mb-3">👁️ Source Document — <span x-text="selectedFilename"></span></h2>
+        <p x-show="sourceMode === 'upload'" class="text-sm text-amber-700 mb-3">
+            Uploaded files are analyzed from this browser request and are not stored by the workshop app.
+        </p>
         <div class="border rounded-lg overflow-hidden bg-gray-100" style="height: 300px;">
-            <iframe :src="selectedSample ? '/api/documents/samples/' + selectedSample + '/raw' : null" class="w-full h-full"></iframe>
+            <img x-show="isPreviewImage()" :src="isPreviewImage() ? previewSrc() : null"
+                 class="h-full mx-auto object-contain" alt="Document preview" />
+            <iframe x-show="isPreviewPdf()" :src="isPreviewPdf() ? previewSrc() : null" class="w-full h-full"></iframe>
+            <div x-show="!isPreviewImage() && !isPreviewPdf()" class="h-full flex items-center justify-center text-sm text-gray-600 text-center p-6">
+                Preview is not available for this file type. The file will still be sent to the analysis APIs.
+            </div>
         </div>
     </div>
 
