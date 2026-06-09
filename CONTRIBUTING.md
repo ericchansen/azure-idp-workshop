@@ -134,7 +134,9 @@ class Settings(BaseSettings):
     azure_client_id: str = ""           # Managed identity client ID (prod only)
     environment: str = "dev"            # Environment name (dev, stage, prod)
     log_level: str = "INFO"             # Python log level
-    cu_completion_deployment: str = "gpt-4.1"
+    cu_completion_model: str = "gpt-5.2"
+    cu_completion_deployment: str = "gpt-5.2"
+    cu_embedding_model: str = "text-embedding-3-large"
     cu_embedding_deployment: str = "text-embedding-3-large"
 ```
 

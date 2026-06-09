@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block title %}Patient Log Analyzer{% endblock %}
+
+{% block nav %}
+<nav class="bg-slate-950 border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+            <a href="/" class="text-sm text-slate-300 hover:text-white">Azure IDP Workshop</a>
+            <div class="text-white font-semibold">Patient Log Analyzer</div>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div x-data="patientLogDemo()" x-init="loadDefinitions()" x-cloak class="space-y-6">
+    <section class="bg-gradient-to-br from-slate-900 to-blue-950 rounded-2xl shadow-xl p-8 text-white">
+        <div class="max-w-4xl">
+            <div class="text-xs uppercase tracking-wide text-blue-200 font-semibold mb-3">
+                CU-only scenario demo
+            </div>
+            <h1 class="text-3xl md:text-4xl font-bold mb-4">Patient Treatment Log Analyzer</h1>
+            <p class="text-blue-100 leading-relaxed">
+                Segment scanned treatment-log packets and reason over body-diagram markings using
+                Content Understanding only. This demo intentionally does not run Document Intelligence
+                first, so results are semantic findings rather than coordinate-perfect layout evidence.
+            </p>
+        </div>
+    </section>
+
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white rounded-xl shadow p-6">
+            <h2 class="text-lg font-semibold mb-3">1. Upload a patient log packet</h2>
+            <p class="text-sm text-gray-600 mb-4">
+                Use an external/manual sample. Real patient or customer documents are not stored,
+                committed, or indexed by this demo.
+            </p>
+            <div class="border-2 border-dashed rounded-xl p-5"
+                 :class="uploadedFile ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                        <div class="font-medium text-gray-900" x-text="uploadedFile ? uploadedFile.name : 'No file selected'"></div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            PDF, images, Office, or HTML. Maximum 10 MB per upload.
+                        </p>
+                        <p x-show="uploadError" class="text-xs text-red-700 mt-2" x-text="uploadError"></p>
+                    </div>
+                    <label class="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 cursor-pointer">
+                        Choose file
+                        <input type="file" class="sr-only"
+                               accept=".pdf,.jpeg,.jpg,.png,.bmp,.tiff,.tif,.heif,.heic,.docx,.xlsx,.pptx,.html"
+                               @change="handleUpload($event)" />
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-3 mt-5">
+                <input type="password" x-model="adminKey" placeholder="Admin key for analyzer setup"
+                       class="px-3 py-2 border border-gray-300 rounded-lg text-sm min-w-64" />
+                <button @click="ensureAnalyzers()" :disabled="ensuring"
+                    class="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-900 disabled:opacity-50">
+                    <span x-show="!ensuring">Create/update analyzers</span>
+                    <span x-show="ensuring">Creating analyzers...</span>
+                </button>
+                <button @click="analyze()" :disabled="!canAnalyze || analyzing"
+                    class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                    <span x-show="!analyzing">Analyze packet</span>
+                    <span x-show="analyzing">Analyzing...</span>
+                </button>
+                <button @click="downloadResults()" :disabled="!analysisResult"
+                    class="px-4 py-2 rounded-lg bg-white border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
+                    Export JSON
+                </button>
+            </div>
+        </div>
+
+        <aside class="bg-amber-50 border border-amber-200 rounded-xl p-6">
+            <h2 class="font-semibold text-amber-900 mb-2">What this proves</h2>
+            <ul class="text-sm text-amber-800 space-y-2 list-disc pl-5">
+                <li>Classifier segmentation can split repeated forms in one packet.</li>
+                <li>CU can reason over scanned body diagrams and handwritten visual marks.</li>
+                <li>Semantic findings can include ambiguity notes for human review.</li>
+                <li>No server-side storage or Search indexing is used for patient-log output.</li>
+            </ul>
+        </aside>
+    </section>
+
+    <section x-show="ensureResult || analysisResult || errorMessage" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl shadow p-6">
+            <h2 class="text-lg font-semibold mb-4">Analyzer status</h2>
+            <template x-if="ensureResult?.result?.analyzers">
+                <div class="space-y-3">
+                    <template x-for="analyzer in ensureResult.result.analyzers" :key="analyzer.id">
+                        <div class="border rounded-lg p-3 flex items-center justify-between">
+                            <div>
+                                <div class="font-mono text-sm text-slate-800" x-text="analyzer.id"></div>
+                                <div class="text-xs text-gray-500" x-text="analyzer.kind"></div>
+                            </div>
+                            <span class="text-xs px-2 py-1 rounded-full"
+                                  :class="analyzer.status === 'ready' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+                                  x-text="analyzer.status"></span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+            <template x-if="!ensureResult">
+                <p class="text-sm text-gray-500">Create analyzers before running the live demo, or use mocked test responses during development.</p>
+            </template>
+        </div>
+
+        <div x-show="errorMessage" class="bg-red-50 border border-red-200 rounded-xl p-6">
+            <h2 class="font-semibold text-red-800 mb-2">Request failed</h2>
+            <pre class="text-sm text-red-700 whitespace-pre-wrap" x-text="errorMessage"></pre>
+        </div>
+    </section>
+
+    <section x-show="analysisResult" class="bg-white rounded-xl shadow p-6">
+        <div class="flex items-start justify-between gap-4 mb-4">
+            <div>
+                <h2 class="text-lg font-semibold">Patient log findings</h2>
+                <p class="text-sm text-gray-500">
+                    Results are generated by <span class="font-mono" x-text="analysisResult?.result?.analyzer_id"></span>.
+                </p>
+            </div>
+            <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">CU-only</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+                <h3 class="font-semibold text-slate-800 mb-2">Segments and categories</h3>
+                <template x-if="segments().length">
+                    <div class="space-y-2">
+                        <template x-for="(segment, index) in segments()" :key="index">
+                            <div class="border rounded-lg p-3">
+                                <div class="font-medium" x-text="segment.category || segment.type || 'Segment'"></div>
+                                <div class="text-xs text-gray-500" x-text="segment.pageRange || segment.pages || segment.source || ''"></div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+                <p x-show="!segments().length" class="text-sm text-gray-500">No explicit segment list found in the response.</p>
+            </div>
+
+            <div>
+                <h3 class="font-semibold text-slate-800 mb-2">Body diagram findings</h3>
+                <template x-if="bodyFindings().length">
+                    <div class="space-y-2">
+                        <template x-for="(finding, index) in bodyFindings()" :key="index">
+                            <div class="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                                <div class="font-medium text-blue-900" x-text="display(finding.region || finding.level_or_range) || 'Visual finding'"></div>
+                                <div class="text-sm text-blue-800 mt-1" x-text="display(finding.symptom_interpretation || finding.mark_description || finding.mark_type)"></div>
+                                <div class="text-xs text-blue-600 mt-1" x-text="display(finding.ambiguity_note || finding.confidence)"></div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+                <p x-show="!bodyFindings().length" class="text-sm text-gray-500">No body-diagram findings found in the response.</p>
+            </div>
+        </div>
+
+        <details class="mt-6">
+            <summary class="cursor-pointer text-sm font-medium text-blue-700">View raw analysis JSON</summary>
+            <pre class="mt-2 bg-gray-900 text-green-300 p-4 rounded text-xs overflow-auto max-h-96"><code x-text="JSON.stringify(analysisResult, null, 2)"></code></pre>
+        </details>
+    </section>
+
+    <section class="bg-white rounded-xl shadow p-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-semibold">Portal demo definitions</h2>
+                <p class="text-sm text-gray-500">
+                    Use these definitions as the source of truth when recreating the same classifier/segmenter and treatment analyzer in Content Understanding Studio.
+                </p>
+            </div>
+            <button @click="copyDefinitions()" class="px-3 py-1.5 rounded border text-sm hover:bg-gray-50">
+                Copy JSON
+            </button>
+        </div>
+        <pre class="mt-4 bg-gray-900 text-green-300 p-4 rounded text-xs overflow-auto max-h-96"><code x-text="JSON.stringify(definitions, null, 2)"></code></pre>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function patientLogDemo() {
+    return {
+        uploadedFile: null,
+        uploadError: '',
+        ensuring: false,
+        analyzing: false,
+        ensureResult: null,
+        analysisResult: null,
+        definitions: null,
+        errorMessage: '',
+        adminKey: '',
+        uploadLimitBytes: 10 * 1024 * 1024,
+        acceptedExtensions: ['.pdf', '.jpeg', '.jpg', '.png', '.bmp', '.tiff', '.tif', '.heif', '.heic', '.docx', '.xlsx', '.pptx', '.html'],
+        get canAnalyze() { return !!this.uploadedFile && !this.uploadError; },
+        async loadDefinitions() {
+            const resp = await fetch('/api/patient-logs/analyzer-definitions');
+            if (resp.ok) this.definitions = await resp.json();
+        },
+        handleUpload(event) {
+            this.uploadError = '';
+            this.analysisResult = null;
+            const file = event.target.files?.[0];
+            if (!file) {
+                this.uploadedFile = null;
+                return;
+            }
+            const ext = file.name.includes('.') ? '.' + file.name.split('.').pop().toLowerCase() : '';
+            if (!this.acceptedExtensions.includes(ext)) {
+                this.uploadedFile = null;
+                this.uploadError = 'Unsupported file type. Use PDF, image, Office, or HTML documents.';
+                return;
+            }
+            if (file.size > this.uploadLimitBytes) {
+                this.uploadedFile = null;
+                this.uploadError = 'File exceeds the 10 MB upload limit.';
+                return;
+            }
+            this.uploadedFile = file;
+        },
+        async ensureAnalyzers() {
+            this.ensuring = true;
+            this.errorMessage = '';
+            try {
+                const headers = this.adminKey ? { 'X-Admin-Key': this.adminKey } : {};
+                const resp = await fetch('/api/patient-logs/ensure-analyzers', { method: 'POST', headers });
+                if (!resp.ok) throw new Error(await resp.text() || 'HTTP ' + resp.status);
+                this.ensureResult = await resp.json();
+            } catch (e) {
+                this.errorMessage = e instanceof Error ? e.message : String(e);
+            } finally {
+                this.ensuring = false;
+            }
+        },
+        async analyze() {
+            if (!this.canAnalyze) return;
+            this.analyzing = true;
+            this.errorMessage = '';
+            this.analysisResult = null;
+            try {
+                const form = new FormData();
+                form.append('file', this.uploadedFile);
+                const resp = await fetch('/api/patient-logs/analyze', { method: 'POST', body: form });
+                if (!resp.ok) throw new Error(await resp.text() || 'HTTP ' + resp.status);
+                this.analysisResult = await resp.json();
+            } catch (e) {
+                this.errorMessage = e instanceof Error ? e.message : String(e);
+            } finally {
+                this.analyzing = false;
+            }
+        },
+        segments() {
+            const analysis = this.analysisResult?.result?.analysis || {};
+            return analysis.segments || analysis.result?.segments || analysis.contents || [];
+        },
+        bodyFindings() {
+            const analysis = this.analysisResult?.result?.analysis;
+            const contentFields = this.contentItems()
+                .map((content) => content?.fields)
+                .filter(Boolean);
+            const fieldsList = contentFields.length ? contentFields : this.findAllFields(analysis);
+            return fieldsList.flatMap((fields) => {
+                const body = fields?.body_diagram_findings || fields?.BodyDiagramFindings;
+                const spinal = fields?.spinal_palpation_findings || fields?.SpinalPalpationFindings;
+                return [...this.fieldArray(body), ...this.fieldArray(spinal)];
+            });
+        },
+        contentItems() {
+            const analysis = this.analysisResult?.result?.analysis || {};
+            return analysis.contents || analysis.result?.contents || [];
+        },
+        findFields(value) {
+            if (!value || typeof value !== 'object') return null;
+            if (value.fields) return value.fields;
+            for (const nested of Object.values(value)) {
+                const found = this.findFields(nested);
+                if (found) return found;
+            }
+            return null;
+        },
+        findAllFields(value, found = []) {
+            if (!value || typeof value !== 'object') return found;
+            if (value.fields) found.push(value.fields);
+            for (const nested of Object.values(value)) {
+                this.findAllFields(nested, found);
+            }
+            return found;
+        },
+        fieldArray(field) {
+            const value = field?.valueArray || field?.value || field;
+            if (!Array.isArray(value)) return [];
+            return value.map((item) => item?.valueObject || item?.value || item);
+        },
+        display(value) {
+            if (value == null) return '';
+            if (typeof value !== 'object') return String(value);
+            if (value.valueString != null) return String(value.valueString);
+            if (value.content != null) return String(value.content);
+            if (value.value != null) return this.display(value.value);
+            if (value.valueNumber != null) return String(value.valueNumber);
+            if (value.valueDate != null) return String(value.valueDate);
+            if (value.valueTime != null) return String(value.valueTime);
+            if (value.valueBoolean != null) return String(value.valueBoolean);
+            if (value.valueObject) return this.display(value.valueObject);
+            return JSON.stringify(value);
+        },
+        downloadResults() {
+            if (!this.analysisResult) return;
+            this.downloadJson(this.analysisResult, 'patient-log-analysis.json');
+        },
+        copyDefinitions() {
+            navigator.clipboard?.writeText(JSON.stringify(this.definitions, null, 2));
+        },
+        downloadJson(data, filename) {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        },
+    };
+}
+</script>
+{% endblock %}

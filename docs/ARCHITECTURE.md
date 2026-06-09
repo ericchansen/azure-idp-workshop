@@ -385,11 +385,14 @@ export const consoleErrorHandler = test.extend({
 |----------|----------|---------|-------------|
 | `AI_SERVICES_ENDPOINT` | Yes | `""` | Azure AI Services endpoint URL |
 | `AI_SERVICES_KEY` | No | `""` | API key (if empty, uses managed identity) |
+| `ADMIN_API_KEY` | No | `""` | Enables admin-only analyzer creation endpoints |
 | `STORAGE_ACCOUNT_URL` | No | `""` | Azure Blob Storage endpoint |
 | `AZURE_CLIENT_ID` | Yes (prod) | — | Managed identity client ID |
 | `ENVIRONMENT` | No | `"dev"` | Environment (dev/stage/prod) |
 | `LOG_LEVEL` | No | `"INFO"` | Python log level (DEBUG/INFO/WARNING/ERROR) |
-| `CU_COMPLETION_DEPLOYMENT` | No | `"gpt-4.1"` | CU GPT-4 deployment name |
+| `CU_COMPLETION_MODEL` | No | `"gpt-5.2"` | CU completion model name |
+| `CU_COMPLETION_DEPLOYMENT` | No | `"gpt-5.2"` | CU completion deployment name |
+| `CU_EMBEDDING_MODEL` | No | `"text-embedding-3-large"` | CU embedding model name |
 | `CU_EMBEDDING_DEPLOYMENT` | No | `"text-embedding-3-large"` | CU embedding deployment name |
 
 ### Loading
@@ -416,11 +419,14 @@ Settings loaded via Pydantic in `src/workshop/config.py`:
 class Settings(BaseSettings):
     ai_services_endpoint: str
     ai_services_key: str = ""
+    admin_api_key: str = ""
     storage_account_url: str = ""
     azure_client_id: str = ""
     environment: str = "dev"
     log_level: str = "INFO"
-    cu_completion_deployment: str = "gpt-4.1"
+    cu_completion_model: str = "gpt-5.2"
+    cu_completion_deployment: str = "gpt-5.2"
+    cu_embedding_model: str = "text-embedding-3-large"
     cu_embedding_deployment: str = "text-embedding-3-large"
 
     class Config:

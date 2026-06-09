@@ -53,7 +53,10 @@ async def analyze_prebuilt(model_id: str, file_bytes: bytes, filename: str) -> d
 
 
 async def analyze_custom(
-    analyzer_id: str, file_bytes: bytes, filename: str, fields: list[dict[str, str]] | None = None
+    analyzer_id: str,
+    file_bytes: bytes,
+    filename: str,
+    fields: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Run a CU custom analyzer with optional field definitions. Returns result + API trace."""
     client = _get_client()
@@ -84,6 +87,91 @@ async def analyze_custom(
             trace.response_status = 200
             result_dict = _result_to_dict(result)
             trace.response_body = result_dict
+        except HttpResponseError as e:
+            trace.error = f"HttpResponseError: {e}"
+            trace.response_status = e.status_code or 500
+            result_dict = {}
+        except Exception as e:
+            trace.error = f"{type(e).__name__}: {e}"
+            trace.response_status = 500
+            result_dict = {}
+
+    trace.duration_ms = timer.duration_ms
+    return {"result": result_dict, "trace": trace.to_dict()}
+
+
+async def create_or_replace_analyzer(
+    analyzer_id: str, definition: dict[str, Any]
+) -> dict[str, Any]:
+    """Create or replace a Content Understanding analyzer from a full definition."""
+    client = _get_client()
+    trace = ApiTrace(service="CU", operation=f"create-analyzer/{analyzer_id}")
+    trace.request_url = (
+        f"{settings.ai_services_endpoint}contentunderstanding/analyzers/{analyzer_id}"
+    )
+    trace.request_method = "PUT"
+    trace.request_headers = sanitize_headers({"Content-Type": "application/json"})
+    trace.request_body = definition
+
+    with TraceTimer() as timer:
+        try:
+            _ensure_defaults(client)
+
+            def _create() -> Any:
+                poller = client.begin_create_analyzer(
+                    analyzer_id=analyzer_id, resource=definition, allow_replace=True
+                )
+                return poller.result()
+
+            result = await asyncio.to_thread(_create)
+            trace.response_status = 200
+            result_dict = _result_to_dict(result)
+            trace.response_body = {"analyzer_id": analyzer_id, "status": "ready"}
+        except HttpResponseError as e:
+            trace.error = f"HttpResponseError: {e}"
+            trace.response_status = e.status_code or 500
+            result_dict = {}
+        except Exception as e:
+            trace.error = f"{type(e).__name__}: {e}"
+            trace.response_status = 500
+            result_dict = {}
+
+    trace.duration_ms = timer.duration_ms
+    return {"result": result_dict, "trace": trace.to_dict()}
+
+
+async def analyze_binary_with_analyzer(
+    analyzer_id: str,
+    file_bytes: bytes,
+    filename: str,
+    content_type: str = "application/octet-stream",
+) -> dict[str, Any]:
+    """Analyze binary input using an existing analyzer ID."""
+    client = _get_client()
+    trace = ApiTrace(service="CU", operation=f"analyze/{analyzer_id}")
+    trace.request_url = (
+        f"{settings.ai_services_endpoint}contentunderstanding/analyzers/{analyzer_id}:analyzeBinary"
+    )
+    trace.request_method = "POST"
+    trace.request_headers = sanitize_headers({"Content-Type": content_type})
+    trace.request_body = {"filename": filename}
+
+    with TraceTimer() as timer:
+        try:
+            _ensure_defaults(client)
+
+            def _run_analysis() -> Any:
+                poller = client.begin_analyze_binary(
+                    analyzer_id=analyzer_id,
+                    binary_input=file_bytes,
+                    content_type=content_type,
+                )
+                return poller.result()
+
+            result = await asyncio.to_thread(_run_analysis)
+            trace.response_status = 200
+            result_dict = _result_to_dict(result)
+            trace.response_body = _summarize_cu_result(result_dict)
         except HttpResponseError as e:
             trace.error = f"HttpResponseError: {e}"
             trace.response_status = e.status_code or 500
@@ -143,20 +231,23 @@ def _ensure_defaults(client: Any) -> None:
     try:
         client.update_defaults(
             model_deployments={
-                "gpt-4.1": settings.cu_completion_deployment,
-                "text-embedding-3-large": settings.cu_embedding_deployment,
+                settings.cu_completion_model: settings.cu_completion_deployment,
+                settings.cu_embedding_model: settings.cu_embedding_deployment,
             }
         )
         _defaults_configured = True
         logger.info(
-            "CU defaults configured: gpt-4.1→%s, text-embedding-3-large→%s",
+            "CU defaults configured: %s→%s, %s→%s",
+            settings.cu_completion_model,
             settings.cu_completion_deployment,
+            settings.cu_embedding_model,
             settings.cu_embedding_deployment,
         )
     except Exception as e:
         logger.warning(
-            "Failed to set CU defaults (gpt-4.1→%s): %s — "
+            "Failed to set CU defaults (%s→%s): %s — "
             "CU custom analyzers may fail if deployment names don't match",
+            settings.cu_completion_model,
             settings.cu_completion_deployment,
             e,
         )
@@ -170,12 +261,16 @@ def _ensure_analyzer(client: Any, analyzer_id: str, fields: list[dict[str, str]]
         logger.debug("Analyzer '%s' already exists", analyzer_id)
         return False
     except Exception:
-        logger.info("Analyzer '%s' not found — creating with completion model gpt-4.1", analyzer_id)
+        logger.info(
+            "Analyzer '%s' not found — creating with completion model %s",
+            analyzer_id,
+            settings.cu_completion_model,
+        )
         analyzer_def: dict[str, Any] = {
             "description": f"Workshop custom analyzer: {analyzer_id}",
             "scenario": "document",
             "baseAnalyzerId": "prebuilt-document",
-            "models": {"completion": "gpt-4.1"},
+            "models": {"completion": settings.cu_completion_model},
         }
         if fields:
             analyzer_def["fieldSchema"] = {
@@ -197,7 +292,7 @@ def _ensure_analyzer(client: Any, analyzer_id: str, fields: list[dict[str, str]]
             logger.error("Failed to create analyzer '%s': %s", analyzer_id, e)
             raise RuntimeError(
                 f"CU analyzer creation failed for '{analyzer_id}': {e}. "
-                f"Check that GPT-4.1 deployment "
+                f"Check that {settings.cu_completion_model} deployment "
                 f"'{settings.cu_completion_deployment}' exists."
             ) from e
 

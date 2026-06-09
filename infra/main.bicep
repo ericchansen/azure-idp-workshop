@@ -38,6 +38,30 @@ param logAnalyticsWorkspaceName string = 'idp-workshop-logs'
 @description('AI Search service name (globally unique)')
 param aiSearchName string = 'idp-workshop-search'
 
+@description('CU completion model name')
+param cuCompletionModelName string = 'gpt-5.2'
+
+@description('CU completion deployment name')
+param cuCompletionDeploymentName string = 'gpt-5.2'
+
+@description('CU completion model version')
+param cuCompletionModelVersion string = '2025-12-11'
+
+@description('CU embedding model name')
+param cuEmbeddingModelName string = 'text-embedding-3-large'
+
+@description('CU embedding deployment name')
+param cuEmbeddingDeploymentName string = 'text-embedding-3-large'
+
+@description('Deploy GPT-4.1 as a fallback CU completion model')
+param deployGpt41Fallback bool = true
+
+@description('Foundry project name for portal authoring and model deployment UX. Set empty to skip project creation.')
+param foundryProjectName string = ''
+
+@description('Foundry project display name')
+param foundryProjectDisplayName string = 'Patient Log Demo'
+
 param tags object = {}
 
 // ── Computed Names ──────────────────────────────────────────────────────────
@@ -54,6 +78,14 @@ module aiServices 'modules/ai-services.bicep' = {
   params: {
     name: aiServicesName
     location: location
+    cuCompletionModelName: cuCompletionModelName
+    cuCompletionDeploymentName: cuCompletionDeploymentName
+    cuCompletionModelVersion: cuCompletionModelVersion
+    cuEmbeddingModelName: cuEmbeddingModelName
+    cuEmbeddingDeploymentName: cuEmbeddingDeploymentName
+    deployGpt41Fallback: deployGpt41Fallback
+    foundryProjectName: foundryProjectName
+    foundryProjectDisplayName: foundryProjectDisplayName
     tags: tags
   }
 }
@@ -149,8 +181,10 @@ module app 'modules/container-app.bicep' = if (!empty(containerImage)) {
       { name: 'STORAGE_ACCOUNT_URL', value: storage.outputs.blobEndpoint }
       { name: 'LOG_LEVEL', value: environmentName == 'prod' ? 'INFO' : 'DEBUG' }
       { name: 'AZURE_CLIENT_ID', value: identity.properties.clientId }
-      { name: 'CU_COMPLETION_DEPLOYMENT', value: 'gpt-4.1' }
-      { name: 'CU_EMBEDDING_DEPLOYMENT', value: 'text-embedding-3-large' }
+      { name: 'CU_COMPLETION_MODEL', value: cuCompletionModelName }
+      { name: 'CU_COMPLETION_DEPLOYMENT', value: cuCompletionDeploymentName }
+      { name: 'CU_EMBEDDING_MODEL', value: cuEmbeddingModelName }
+      { name: 'CU_EMBEDDING_DEPLOYMENT', value: cuEmbeddingDeploymentName }
       { name: 'AIS_ENDPOINT', value: aiSearch.outputs.endpoint }
       { name: 'AIS_INDEX_NAME', value: 'workshop-documents' }
     ]
@@ -162,5 +196,7 @@ module app 'modules/container-app.bicep' = if (!empty(containerImage)) {
 output acrLoginServer string = acr.outputs.acrLoginServer
 output identityPrincipalId string = identity.properties.principalId
 output identityName string = identity.name
+output foundryProjectName string = aiServices.outputs.projectName
+output foundryProjectId string = aiServices.outputs.projectId
 output appUrl string = !empty(containerImage) ? app.outputs.appUrl : ''
 output appFqdn string = !empty(containerImage) ? app.outputs.appFqdn : ''

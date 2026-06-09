@@ -10,8 +10,13 @@ from pydantic import BaseModel, ValidationError
 
 from workshop.routers.documents import get_document_source, get_file_bytes
 from workshop.services import content_understanding as cu_service
+from workshop.services.patient_log_analyzers import (
+    PATIENT_LOG_CLASSIFIER_ID,
+    PATIENT_LOG_TREATMENT_ID,
+)
 
 router = APIRouter(prefix="/api/cu", tags=["content-understanding"])
+RESERVED_ANALYZER_IDS = {PATIENT_LOG_CLASSIFIER_ID, PATIENT_LOG_TREATMENT_ID}
 
 
 class CustomField(BaseModel):
@@ -60,6 +65,7 @@ async def cu_custom(
     content_type = request.headers.get("content-type", "")
     if content_type.startswith("application/json"):
         body = await _read_custom_json(request)
+        _reject_reserved_analyzer_id(body.analyzer_id)
         document = await get_document_source(sample=body.sample)
         field_values = [f.model_dump() for f in body.fields] if body.fields else None
         return await cu_service.analyze_custom(
@@ -68,8 +74,10 @@ async def cu_custom(
 
     document = await get_document_source(file=file, sample=sample)
     parsed_fields = _parse_custom_fields(fields)
+    resolved_analyzer_id = analyzer_id or "workshop-custom"
+    _reject_reserved_analyzer_id(resolved_analyzer_id)
     return await cu_service.analyze_custom(
-        analyzer_id or "workshop-custom",
+        resolved_analyzer_id,
         document.content,
         document.filename,
         parsed_fields,
@@ -100,3 +108,11 @@ def _parse_custom_fields(fields: str | None) -> list[dict[str, Any]] | None:
     except (TypeError, ValidationError) as err:
         raise HTTPException(status_code=422, detail="Field definitions are invalid") from err
     return parsed
+
+
+def _reject_reserved_analyzer_id(analyzer_id: str) -> None:
+    if analyzer_id in RESERVED_ANALYZER_IDS:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Analyzer '{analyzer_id}' is reserved for the patient log demo.",
+        )

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+from workshop.services.patient_log_analyzers import PATIENT_LOG_CLASSIFIER_ID
+
 
 def test_cu_layout_requires_file_or_sample(client):  # type: ignore[no-untyped-def]
     resp = client.post("/api/cu/layout")
@@ -86,3 +88,22 @@ def test_cu_custom_multipart_rejects_invalid_fields(client):  # type: ignore[no-
     )
     assert resp.status_code == 400
     assert "valid JSON" in resp.json()["detail"]
+
+
+def test_cu_custom_rejects_reserved_patient_log_analyzer_json(client):  # type: ignore[no-untyped-def]
+    resp = client.post(
+        "/api/cu/custom",
+        json={"sample": "contract.pdf", "analyzer_id": PATIENT_LOG_CLASSIFIER_ID},
+    )
+    assert resp.status_code == 403
+    assert "reserved" in resp.json()["detail"]
+
+
+def test_cu_custom_rejects_reserved_patient_log_analyzer_upload(client):  # type: ignore[no-untyped-def]
+    resp = client.post(
+        "/api/cu/custom",
+        data={"analyzer_id": PATIENT_LOG_CLASSIFIER_ID},
+        files={"file": ("upload.pdf", b"%PDF-1.4\n", "application/pdf")},
+    )
+    assert resp.status_code == 403
+    assert "reserved" in resp.json()["detail"]

@@ -1,7 +1,8 @@
 name: PR Staging
 
 on:
-  workflow_dispatch:
+  pull_request:
+    types: [closed]
 
 permissions:
   id-token: write
@@ -9,7 +10,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: pr-staging-${{ github.event.pull_request.number }}
+  group: pr-staging-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 env:
@@ -27,15 +28,49 @@ env:
 jobs:
   deploy:
     name: Deploy Preview
-    if: >-
-      github.event.action != 'closed' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.actor != 'dependabot[bot]'
+    # Disabled until preview deploys use isolated, least-privilege resources.
+    if: false
     runs-on: ubuntu-latest
+    environment: pr-preview
     outputs:
       preview_url: ${{ steps.review.outputs.preview_url }}
+      head_sha: ${{ steps.preview.outputs.head_sha }}
     steps:
+      - name: Validate preview inputs
+        id: preview
+        shell: bash
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "pr_number must contain digits only"
+            exit 1
+          fi
+          PR_JSON=$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json number,state,isCrossRepository,headRefOid)
+          CANONICAL_PR_NUMBER=$(jq -r '.number' <<< "$PR_JSON")
+          PR_STATE=$(jq -r '.state' <<< "$PR_JSON")
+          IS_CROSS_REPOSITORY=$(jq -r '.isCrossRepository' <<< "$PR_JSON")
+          HEAD_SHA=$(jq -r '.headRefOid' <<< "$PR_JSON")
+          if [ "$PR_STATE" != "OPEN" ]; then
+            echo "Preview deploys are only allowed for open pull requests"
+            exit 1
+          fi
+          if [ "$IS_CROSS_REPOSITORY" != "false" ]; then
+            echo "Preview deploys are restricted to same-repository pull requests"
+            exit 1
+          fi
+          if [[ ! "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Could not resolve a valid pull request head SHA"
+            exit 1
+          fi
+          echo "pr_number=$CANONICAL_PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ steps.preview.outputs.head_sha }}
+          persist-credentials: false
 
       - name: Azure Login
         uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
@@ -137,9 +172,9 @@ jobs:
       - name: Set image tag
         id: vars
         run: |
-          SHORT_SHA=${GITHUB_SHA:0:7}
+          SHORT_SHA=$(git rev-parse --short HEAD)
           echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
-          echo "image_ref=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:pr-${{ github.event.pull_request.number }}-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "image_ref=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:pr-${{ steps.preview.outputs.pr_number }}-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: ACR Login
         run: az acr login --name ${{ env.ACR_NAME }}
@@ -155,7 +190,7 @@ jobs:
           REVISIONS=$(az containerapp revision list \
             --name ${{ env.CONTAINERAPP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "[?contains(name, '--pr-${{ github.event.pull_request.number }}')].name" -o tsv)
+            --query "[?contains(name, '--pr-${{ steps.preview.outputs.pr_number }}-')].name" -o tsv)
           for REV in $REVISIONS; do
             echo "Deactivating old revision: $REV"
             az containerapp revision deactivate \
@@ -167,9 +202,9 @@ jobs:
       - name: Deploy preview revision
         id: review
         run: |
-          PR_NUM=${{ github.event.pull_request.number }}
+          PR_NUM=${{ steps.preview.outputs.pr_number }}
           SHORT_SHA=${{ steps.vars.outputs.short_sha }}
-          REVISION_SUFFIX="pr-${PR_NUM}-${SHORT_SHA}"
+          REVISION_SUFFIX="pr-${PR_NUM}-${SHORT_SHA}-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
 
           # Capture the current production revision before creating the PR revision
           PROD_REVISION=$(az containerapp ingress traffic show \
@@ -184,21 +219,27 @@ jobs:
           fi
           echo "Production revision: $PROD_REVISION"
 
+          ENV_ARGS=(
+            ENVIRONMENT=${{ env.ENVIRONMENT }}
+            AI_SERVICES_ENDPOINT=${{ steps.runtime.outputs.ai_services_endpoint }}
+            STORAGE_ACCOUNT_URL=${{ steps.runtime.outputs.storage_account_url }}
+            LOG_LEVEL=INFO
+            AZURE_CLIENT_ID=${{ steps.runtime.outputs.azure_client_id }}
+            CU_COMPLETION_MODEL=gpt-5.2
+            CU_COMPLETION_DEPLOYMENT=gpt-5.2
+            CU_EMBEDDING_MODEL=text-embedding-3-large
+            CU_EMBEDDING_DEPLOYMENT=text-embedding-3-large
+            AIS_ENDPOINT=${{ steps.runtime.outputs.ais_endpoint }}
+            AIS_INDEX_NAME=workshop-documents-pr-${PR_NUM}
+          )
+          ENV_ARGS+=(ADMIN_API_KEY=)
+
           az containerapp update \
             --name ${{ env.CONTAINERAPP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --image ${{ steps.vars.outputs.image_ref }} \
             --revision-suffix "$REVISION_SUFFIX" \
-            --set-env-vars \
-              ENVIRONMENT=${{ env.ENVIRONMENT }} \
-              AI_SERVICES_ENDPOINT=${{ steps.runtime.outputs.ai_services_endpoint }} \
-              STORAGE_ACCOUNT_URL=${{ steps.runtime.outputs.storage_account_url }} \
-              LOG_LEVEL=INFO \
-              AZURE_CLIENT_ID=${{ steps.runtime.outputs.azure_client_id }} \
-              CU_COMPLETION_DEPLOYMENT=gpt-4.1 \
-              CU_EMBEDDING_DEPLOYMENT=text-embedding-3-large \
-              AIS_ENDPOINT=${{ steps.runtime.outputs.ais_endpoint }} \
-              AIS_INDEX_NAME=workshop-documents-pr-${PR_NUM} \
+            --set-env-vars "${ENV_ARGS[@]}" \
             --output none
 
           # Ensure production revision keeps 100% traffic
@@ -228,7 +269,6 @@ jobs:
 
           echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
           echo "Preview URL: $PREVIEW_URL"
-
       - name: Wait for revision health
         run: |
           PREVIEW_URL="${{ steps.review.outputs.preview_url }}"
@@ -248,7 +288,7 @@ jobs:
         with:
           script: |
             const url = '${{ steps.review.outputs.preview_url }}';
-            const sha = '${{ github.sha }}'.substring(0, 7);
+            const sha = '${{ steps.preview.outputs.head_sha }}'.substring(0, 7);
             const marker = '## 🚀 PR Preview';
             const body = [
               marker,
@@ -264,7 +304,7 @@ jobs:
             ].join('\n');
 
             const { owner, repo } = context.repo;
-            const issue_number = context.issue.number;
+            const issue_number = Number('${{ steps.preview.outputs.pr_number }}');
             const comments = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
             const existing = comments.data.find(c => c.user?.type === 'Bot' && c.body?.includes(marker));
 
@@ -279,15 +319,20 @@ jobs:
           echo "## 🚀 PR Preview Deployed" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**URL:** ${{ steps.review.outputs.preview_url }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "**Commit:** \`${GITHUB_SHA:0:7}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Commit:** \`${{ steps.preview.outputs.head_sha }}\`" >> "$GITHUB_STEP_SUMMARY"
 
   e2e:
     name: E2E Tests (Preview)
     needs: deploy
     if: needs.deploy.outputs.preview_url != ''
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ needs.deploy.outputs.head_sha }}
+          persist-credentials: false
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
@@ -331,7 +376,7 @@ jobs:
           REVISIONS=$(az containerapp revision list \
             --name ${{ env.CONTAINERAPP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "[?contains(name, '--pr-${{ github.event.pull_request.number }}')].name" -o tsv)
+            --query "[?contains(name, '--pr-${{ github.event.pull_request.number }}-')].name" -o tsv)
           for REV in $REVISIONS; do
             echo "Deactivating revision: $REV"
             az containerapp revision deactivate \
@@ -339,6 +384,11 @@ jobs:
               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
               --revision "$REV" || true
           done
+          az containerapp secret remove \
+            --name ${{ env.CONTAINERAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --secret-names patient-log-admin-api-key-pr-${{ github.event.pull_request.number }} \
+            --output none 2>/dev/null || true
 
       - name: Delete PR search index
         run: |
