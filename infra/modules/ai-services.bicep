@@ -9,7 +9,37 @@ param location string = resourceGroup().location
 
 param tags object = {}
 
-resource aiServices 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
+@description('Default CU completion model name')
+param cuCompletionModelName string = 'gpt-5.2'
+
+@description('Default CU completion deployment name')
+param cuCompletionDeploymentName string = 'gpt-5.2'
+
+@description('Default CU completion model version')
+param cuCompletionModelVersion string = '2025-12-11'
+
+@description('CU completion deployment SKU')
+param cuCompletionDeploymentSkuName string = 'GlobalStandard'
+
+@description('CU completion deployment capacity')
+param cuCompletionDeploymentCapacity int = 10
+
+@description('Deploy GPT-4.1 as a fallback completion model')
+param deployGpt41Fallback bool = true
+
+@description('CU embedding model name')
+param cuEmbeddingModelName string = 'text-embedding-3-large'
+
+@description('CU embedding deployment name')
+param cuEmbeddingDeploymentName string = 'text-embedding-3-large'
+
+@description('Foundry project name for portal authoring and model deployment UX. Set empty to skip project creation.')
+param foundryProjectName string = ''
+
+@description('Foundry project display name')
+param foundryProjectDisplayName string = 'Patient Log Demo'
+
+resource aiServices 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
   name: name
   location: location
   tags: tags
@@ -18,13 +48,31 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
     name: 'S0'
   }
   properties: {
+    allowProjectManagement: true
     customSubDomainName: name
     publicNetworkAccess: 'Enabled'
   }
 }
 
-// GPT-4.1 deployment (required for CU custom analyzers)
-resource gpt41 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+// Default completion deployment for CU custom analyzers
+resource completion 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+  parent: aiServices
+  name: cuCompletionDeploymentName
+  sku: {
+    name: cuCompletionDeploymentSkuName
+    capacity: cuCompletionDeploymentCapacity
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: cuCompletionModelName
+      version: cuCompletionModelVersion
+    }
+  }
+}
+
+// GPT-4.1 fallback while validating newer CU completion models
+resource gpt41Fallback 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (deployGpt41Fallback && cuCompletionDeploymentName != 'gpt-4.1') {
   parent: aiServices
   name: 'gpt-4.1'
   sku: {
@@ -43,8 +91,8 @@ resource gpt41 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
 // Text embedding deployment (required for CU)
 resource embedding 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
   parent: aiServices
-  name: 'text-embedding-3-large'
-  dependsOn: [gpt41]
+  name: cuEmbeddingDeploymentName
+  dependsOn: [completion]
   sku: {
     name: 'Standard'
     capacity: 10
@@ -52,11 +100,24 @@ resource embedding 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01'
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'text-embedding-3-large'
+      name: cuEmbeddingModelName
       version: '1'
     }
   }
 }
 
+resource foundryProject 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = if (!empty(foundryProjectName)) {
+  parent: aiServices
+  name: foundryProjectName
+  location: location
+  tags: tags
+  properties: {
+    description: 'Patient treatment log Content Understanding demo project'
+    displayName: foundryProjectDisplayName
+  }
+}
+
 output endpoint string = aiServices.properties.endpoint
 output name string = aiServices.name
+output projectName string = foundryProjectName
+output projectId string = !empty(foundryProjectName) ? foundryProject.id : ''

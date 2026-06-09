@@ -157,22 +157,54 @@ jobs:
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query id -o tsv)
 
-          if az containerapp show --name idp-workshop --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --query name -o tsv 2>/dev/null; then
+          APP_EXISTS=$(az containerapp show \
+            --name idp-workshop \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query name -o tsv 2>/dev/null || true)
+
+          ENV_ARGS=(
+            ENVIRONMENT=${{ env.ENVIRONMENT }}
+            AI_SERVICES_ENDPOINT=${{ steps.runtime.outputs.ai_services_endpoint }}
+            STORAGE_ACCOUNT_URL=${{ steps.runtime.outputs.storage_account_url }}
+            LOG_LEVEL=INFO
+            AZURE_CLIENT_ID=${{ steps.runtime.outputs.azure_client_id }}
+            CU_COMPLETION_MODEL=gpt-5.2
+            CU_COMPLETION_DEPLOYMENT=gpt-5.2
+            CU_EMBEDDING_MODEL=text-embedding-3-large
+            CU_EMBEDDING_DEPLOYMENT=text-embedding-3-large
+            AIS_ENDPOINT=${{ steps.runtime.outputs.ais_endpoint }}
+            AIS_INDEX_NAME=workshop-documents
+          )
+          SECRET_ARGS=()
+          if [ -n "$PATIENT_LOG_ADMIN_API_KEY" ]; then
+            if [ -n "$APP_EXISTS" ]; then
+              az containerapp secret set \
+                --name idp-workshop \
+                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+                --secrets "patient-log-admin-api-key=$PATIENT_LOG_ADMIN_API_KEY" \
+                --output none
+            else
+              SECRET_ARGS=(--secrets "patient-log-admin-api-key=$PATIENT_LOG_ADMIN_API_KEY")
+            fi
+            ENV_ARGS+=(ADMIN_API_KEY=secretref:patient-log-admin-api-key)
+          else
+            if [ -n "$APP_EXISTS" ]; then
+              az containerapp secret remove \
+                --name idp-workshop \
+                --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+                --secret-names patient-log-admin-api-key \
+                --output none 2>/dev/null || true
+            fi
+            ENV_ARGS+=(ADMIN_API_KEY=)
+          fi
+
+          if [ -n "$APP_EXISTS" ]; then
             echo "Container app exists — updating"
             az containerapp update \
               --name idp-workshop \
               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
               --image ${{ steps.image.outputs.image-ref }} \
-              --set-env-vars \
-                ENVIRONMENT=${{ env.ENVIRONMENT }} \
-                AI_SERVICES_ENDPOINT=${{ steps.runtime.outputs.ai_services_endpoint }} \
-                STORAGE_ACCOUNT_URL=${{ steps.runtime.outputs.storage_account_url }} \
-                LOG_LEVEL=INFO \
-                AZURE_CLIENT_ID=${{ steps.runtime.outputs.azure_client_id }} \
-                CU_COMPLETION_DEPLOYMENT=gpt-4.1 \
-                CU_EMBEDDING_DEPLOYMENT=text-embedding-3-large \
-                AIS_ENDPOINT=${{ steps.runtime.outputs.ais_endpoint }} \
-                AIS_INDEX_NAME=workshop-documents \
+              --set-env-vars "${ENV_ARGS[@]}" \
               --output none
           else
             echo "Container app does not exist — creating"
@@ -187,16 +219,8 @@ jobs:
               --ingress external --target-port 8080 \
               --revisions-mode multiple \
               --min-replicas 1 --max-replicas 3 \
-              --env-vars \
-                ENVIRONMENT=${{ env.ENVIRONMENT }} \
-                AI_SERVICES_ENDPOINT=${{ steps.runtime.outputs.ai_services_endpoint }} \
-                STORAGE_ACCOUNT_URL=${{ steps.runtime.outputs.storage_account_url }} \
-                LOG_LEVEL=INFO \
-                AZURE_CLIENT_ID=${{ steps.runtime.outputs.azure_client_id }} \
-                CU_COMPLETION_DEPLOYMENT=gpt-4.1 \
-                CU_EMBEDDING_DEPLOYMENT=text-embedding-3-large \
-                AIS_ENDPOINT=${{ steps.runtime.outputs.ais_endpoint }} \
-                AIS_INDEX_NAME=workshop-documents \
+              "${SECRET_ARGS[@]}" \
+              --env-vars "${ENV_ARGS[@]}" \
               --output none
           fi
 
@@ -205,6 +229,8 @@ jobs:
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query "properties.configuration.ingress.fqdn" -o tsv)
           echo "app_url=https://${APP_URL}" >> "$GITHUB_OUTPUT"
+        env:
+          PATIENT_LOG_ADMIN_API_KEY: ${{ secrets.PATIENT_LOG_ADMIN_API_KEY }}
 
       - name: Route traffic to latest revision
         run: |

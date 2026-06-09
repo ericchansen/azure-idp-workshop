@@ -2,6 +2,9 @@ FROM python:3.12-slim AS base
 
 WORKDIR /app
 
+# Patch OS-level vulnerabilities
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:0.7.12 /uv /usr/local/bin/uv
 

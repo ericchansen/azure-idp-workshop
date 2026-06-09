@@ -33,3 +33,9 @@ def test_guide_page(client):  # type: ignore[no-untyped-def]
     resp = client.get("/guide")
     assert resp.status_code == 200
     assert "Decision" in resp.text
+
+
+def test_patient_log_page(client):  # type: ignore[no-untyped-def]
+    resp = client.get("/patient-log")
+    assert resp.status_code == 200
+    assert "Patient Treatment Log Analyzer" in resp.text
