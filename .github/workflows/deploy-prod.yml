@@ -121,8 +121,20 @@ jobs:
           IMAGE_TAG=sha-${GITHUB_SHA::8}
           IMAGE_REF=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${IMAGE_TAG}
           docker build -t ${IMAGE_REF} .
-          docker push ${IMAGE_REF}
           echo "image-ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
+
+      - name: Scan image for CRITICAL/HIGH vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.image.outputs.image-ref }}
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+          vuln-type: 'os,library'
+          ignore-unfixed: true
+
+      - name: Push image
+        run: docker push ${{ steps.image.outputs.image-ref }}
 
       - name: Resolve runtime env
         id: runtime

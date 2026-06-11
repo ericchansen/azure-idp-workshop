@@ -95,6 +95,7 @@ If `BASE_URL` is missing or points to `localhost`, the smoke suite will now fail
    - Unit tests (≥55% coverage)
    - Structural E2E tests
    - Docker build & Trivy scan
+   - Trivy scan artifact review for any new fixable CRITICAL/HIGH findings
 3. Await review.
 4. **Rebase merge only** — no squash, no merge commits.
 
@@ -151,3 +152,16 @@ cp .env.template .env
 ## Architecture & More
 
 For architectural details, deployment patterns, CI/CD pipelines, and troubleshooting, see [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+
+## Security Patch Workflow
+
+1. Keep dependencies current via Dependabot PRs (pip/npm/actions/docker).
+2. Fast-track fixes for `CRITICAL/HIGH` vulnerabilities with available patches.
+3. If a finding is not yet fixable upstream, track it explicitly and recheck on each dependency/base-image bump.
+4. Do not bypass Trivy gates silently; if an emergency exception is needed, document the reason and expiry in the PR.
+
+## Health Checks
+
+- Canonical service health endpoint is `GET /api/health`.
+- Deep check is `GET /api/health?deep=true`.
+- Infrastructure probes and CI/deploy checks must stay aligned to `/api/health`.
