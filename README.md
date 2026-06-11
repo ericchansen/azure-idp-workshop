@@ -62,6 +62,19 @@ docker build -t idp-workshop .   # Build container
 - Smoke E2E must target a deployed app: `BASE_URL=https://your-app.azurecontainerapps.io npx playwright test --grep Smoke --project="Desktop Edge"`
 - The smoke suite now fails fast if `BASE_URL` is missing or points at `localhost`, so local Azure config issues do not masquerade as deployment regressions.
 
+### Container image compliance
+
+- Base image updates are tracked by Dependabot (`docker` ecosystem, weekly cadence).
+- CI blocks fixable `CRITICAL/HIGH` container vulnerabilities via Trivy before merge.
+- Production and preview deploy workflows re-scan built images before push to ACR.
+- Trivy JSON scan artifacts are retained in CI for triage/auditing.
+
+### Canonical health endpoints
+
+- Public health endpoint: `GET /api/health`
+- Deep configuration check: `GET /api/health?deep=true`
+- CI, deploy health checks, smoke tests, and Container App probes all target `/api/health`.
+
 ## Architecture
 
 ```

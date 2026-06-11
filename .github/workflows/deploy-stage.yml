@@ -182,6 +182,17 @@ jobs:
       - name: Build & Push
         run: |
           docker build -t ${{ steps.vars.outputs.image_ref }} .
+      - name: Scan image for CRITICAL/HIGH vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.vars.outputs.image_ref }}
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+          vuln-type: 'os,library'
+          ignore-unfixed: true
+      - name: Push image
+        run: |
           docker push ${{ steps.vars.outputs.image_ref }}
 
       - name: Deactivate previous PR revisions

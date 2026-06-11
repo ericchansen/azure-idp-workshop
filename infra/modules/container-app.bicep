@@ -73,6 +73,36 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             memory: '1Gi'
           }
           env: envVars
+          probes: [
+            {
+              type: 'Startup'
+              httpGet: {
+                path: '/api/health'
+                port: 8080
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              failureThreshold: 12
+            }
+            {
+              type: 'Liveness'
+              httpGet: {
+                path: '/api/health'
+                port: 8080
+              }
+              initialDelaySeconds: 15
+              periodSeconds: 10
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/api/health'
+                port: 8080
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 5
+            }
+          ]
         }
       ]
       scale: {

@@ -60,7 +60,27 @@ jobs:
           format: 'table'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
+          vuln-type: 'os,library'
           ignore-unfixed: true
+
+      - name: Generate Trivy JSON report
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: 'idp-workshop:ci'
+          format: 'json'
+          output: 'trivy-results.json'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+          vuln-type: 'os,library'
+          ignore-unfixed: true
+
+      - name: Upload Trivy report artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trivy-report
+          path: trivy-results.json
+          retention-days: 14
 
   e2e-structural:
     name: E2E Structural Tests

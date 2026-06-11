@@ -141,6 +141,8 @@ Uploads are request-scoped and raw bytes are not persisted by the workshop app. 
 | `GET` | `/api/health` | Basic health check |
 | `GET` | `/api/health?deep=true` | Deep check with service configuration |
 
+`/api/health` is the canonical public health path and is used by CI startup checks, deploy-time health checks, smoke tests, and Container App probes.
+
 ### Frontend Tech Stack
 
 | Technology | Role |
@@ -216,6 +218,9 @@ Environment variables in `main.bicep` generate per-environment names:
 | **Max replicas** | 3 (prod) / 1 (stage) |
 | **Auto-scaling rule** | 20 concurrent HTTP requests |
 | **Revisions mode** | Multiple (for PR previews) |
+| **Startup probe** | `GET /api/health` |
+| **Liveness probe** | `GET /api/health` |
+| **Readiness probe** | `GET /api/health` |
 
 ---
 
@@ -261,7 +266,7 @@ PUSH TO MAIN
 
 **Test must-passes**:
 - pytest: ≥55% code coverage
-- Trivy: No CRITICAL or unfixed HIGH vulnerabilities
+- Trivy: No fixable CRITICAL/HIGH vulnerabilities
 - E2E: No console errors, all assertions pass
 
 ### Deploy Production Workflow
@@ -275,10 +280,12 @@ PUSH TO MAIN
 3. **Ensure role assignments** — 3x `az role assignment create` (idempotent, `|| true`)
 4. **Re-authenticate** — Token may expire during Bicep deployment
 5. **ACR Login** — Prepare for image push
-6. **Build & Push** — Docker image tagged `sha-{7-char SHA}`
-7. **Deploy app revision** — `az containerapp update --image`
-8. **Route traffic** — `az containerapp ingress traffic set --revision-weight latest=100`
-9. **Smoke Test** — Run Playwright against live deployed app (`continue-on-error: true`)
+6. **Build image** — Docker image tagged `sha-{7-char SHA}`
+7. **Security gate** — Trivy scan blocks fixable `CRITICAL/HIGH` findings
+8. **Push image** — Push only after scan passes
+9. **Deploy app revision** — `az containerapp update --image`
+10. **Route traffic** — `az containerapp ingress traffic set --revision-weight latest=100`
+11. **Smoke Test** — Run Playwright against live deployed app
 
 **Smoke Test Job**:
 - Runs against **real deployed app** (no mocks)
