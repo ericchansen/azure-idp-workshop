@@ -280,7 +280,7 @@ PUSH TO MAIN
 3. **Ensure role assignments** — 3x `az role assignment create` (idempotent, `|| true`)
 4. **Re-authenticate** — Token may expire during Bicep deployment
 5. **ACR Login** — Prepare for image push
-6. **Build image** — Docker image tagged `sha-{7-char SHA}`
+6. **Build image** — Docker image tagged `sha-{8-char SHA}`
 7. **Security gate** — Trivy scan blocks fixable `CRITICAL/HIGH` findings
 8. **Push image** — Push only after scan passes
 9. **Deploy app revision** — `az containerapp update --image`
