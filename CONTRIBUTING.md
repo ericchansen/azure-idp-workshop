@@ -156,9 +156,10 @@ For architectural details, deployment patterns, CI/CD pipelines, and troubleshoo
 ## Security Patch Workflow
 
 1. Keep dependencies current via Dependabot PRs (pip/npm/actions/docker).
-2. Fast-track fixes for `CRITICAL/HIGH` vulnerabilities with available patches.
-3. If a finding is not yet fixable upstream, track it explicitly and recheck on each dependency/base-image bump.
-4. Do not bypass Trivy gates silently; if an emergency exception is needed, document the reason and expiry in the PR.
+2. Non-major Dependabot updates are merged automatically: branch protection on `main` requires the CI checks (Lint & Test, Docker Build & Scan, E2E Structural Tests), and the `Dependabot Auto-Merge` workflow enables GitHub auto-merge so the PR lands once those checks pass. Major (`semver-major`) bumps are intentionally left for manual review.
+3. Fast-track fixes for `CRITICAL/HIGH` vulnerabilities with available patches.
+4. If a finding is not yet fixable upstream, track it explicitly and recheck on each dependency/base-image bump.
+5. Do not bypass Trivy gates silently; if an emergency exception is needed, document the reason and expiry in the PR.
 
 ## Health Checks
 
