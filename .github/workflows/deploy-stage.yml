@@ -179,7 +179,7 @@ jobs:
       - name: ACR Login
         run: az acr login --name ${{ env.ACR_NAME }}
 
-      - name: Build & Push
+      - name: Build image
         run: |
           docker build -t ${{ steps.vars.outputs.image_ref }} .
       - name: Scan image for CRITICAL/HIGH vulnerabilities

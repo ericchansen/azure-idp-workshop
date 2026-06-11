@@ -115,7 +115,7 @@ jobs:
       - name: ACR Login
         run: az acr login --name ${{ env.ACR_NAME }}
 
-      - name: Build & Push
+      - name: Build image
         id: image
         run: |
           IMAGE_TAG=sha-${GITHUB_SHA::8}
