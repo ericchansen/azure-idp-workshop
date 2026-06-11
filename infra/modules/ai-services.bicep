@@ -71,10 +71,13 @@ resource completion 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01
   }
 }
 
-// GPT-4.1 fallback while validating newer CU completion models
+// GPT-4.1 fallback while validating newer CU completion models.
+// Serialized after the primary completion deployment: Cognitive Services
+// rejects concurrent deployment operations on the same account (RequestConflict).
 resource gpt41Fallback 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (deployGpt41Fallback && cuCompletionDeploymentName != 'gpt-4.1') {
   parent: aiServices
   name: 'gpt-4.1'
+  dependsOn: [completion]
   sku: {
     name: 'GlobalStandard'
     capacity: 10
@@ -88,11 +91,12 @@ resource gpt41Fallback 'Microsoft.CognitiveServices/accounts/deployments@2024-10
   }
 }
 
-// Text embedding deployment (required for CU)
+// Text embedding deployment (required for CU). Serialized after the prior
+// model deployments so all account/deployments operations run sequentially.
 resource embedding 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
   parent: aiServices
   name: cuEmbeddingDeploymentName
-  dependsOn: [completion]
+  dependsOn: [completion, gpt41Fallback]
   sku: {
     name: 'Standard'
     capacity: 10
