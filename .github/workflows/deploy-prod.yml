@@ -63,7 +63,6 @@ jobs:
       - name: Ensure role assignments
         run: |
           PRINCIPAL_ID="${{ steps.infra.outputs.identityPrincipalId }}"
-          DEPLOY_PRINCIPAL_ID="${{ steps.infra.outputs.deployIdentityPrincipalId }}"
           RG_SCOPE="/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ env.AZURE_RESOURCE_GROUP }}"
 
           # ── Runtime identity roles ──
@@ -108,31 +107,6 @@ jobs:
             --scope "$RG_SCOPE" \
             --only-show-errors 2>&1 || true
 
-          # ── Deploy identity roles (for UAMI migration) ──
-
-          # Contributor (deploy Bicep, manage resources)
-          az role assignment create \
-            --assignee-object-id "$DEPLOY_PRINCIPAL_ID" \
-            --assignee-principal-type ServicePrincipal \
-            --role "b24988ac-6180-42a0-ab88-20f7382dd24c" \
-            --scope "$RG_SCOPE" \
-            --only-show-errors 2>&1 || true
-
-          # User Access Administrator (create role assignments)
-          az role assignment create \
-            --assignee-object-id "$DEPLOY_PRINCIPAL_ID" \
-            --assignee-principal-type ServicePrincipal \
-            --role "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9" \
-            --scope "$RG_SCOPE" \
-            --only-show-errors 2>&1 || true
-
-          # AcrPush (build and push container images)
-          az role assignment create \
-            --assignee-object-id "$DEPLOY_PRINCIPAL_ID" \
-            --assignee-principal-type ServicePrincipal \
-            --role "8311e382-0749-4cb8-b61a-304f252e45ec" \
-            --scope "$RG_SCOPE" \
-            --only-show-errors 2>&1 || true
 
       - name: Re-authenticate
         uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
