@@ -62,6 +62,18 @@ param foundryProjectName string = ''
 @description('Foundry project display name')
 param foundryProjectDisplayName string = 'Patient Log Demo'
 
+@description('Immutable GitHub repository ID for OIDC federation (numeric). Obtain with: gh api repos/{owner}/{repo} --jq .id')
+param githubRepositoryId int = 1167677240
+
+@description('GitHub repository owner for OIDC federation')
+param githubRepositoryOwner string = 'ericchansen'
+
+@description('Immutable GitHub repository owner ID for OIDC federation (numeric). Obtain with: gh api repos/{owner}/{repo} --jq .owner.id')
+param githubRepositoryOwnerId int = 5395779
+
+@description('GitHub repository name for OIDC federation')
+param githubRepositoryName string = 'azure-idp-workshop'
+
 param tags object = {}
 
 // ── Computed Names ──────────────────────────────────────────────────────────
@@ -70,6 +82,7 @@ var envSuffix = environmentName == 'prod' ? '' : '-${environmentName}'
 var appEnvName = 'idp-cae${envSuffix}'
 var appName = 'idp-workshop${envSuffix}'
 var identityName = 'idp-id${envSuffix}'
+var deployIdentityName = 'idp-deploy'
 
 // ── AI Services ─────────────────────────────────────────────────────────────
 
@@ -135,6 +148,21 @@ module aiSearch 'modules/ai-search.bicep' = {
   }
 }
 
+// ── Deploy Identity (GitHub Actions OIDC) ───────────────────────────────────
+
+module deployIdentity 'modules/deploy-identity.bicep' = {
+  name: 'deploy-identity'
+  params: {
+    identityName: deployIdentityName
+    location: location
+    repositoryOwner: githubRepositoryOwner
+    repositoryOwnerId: githubRepositoryOwnerId
+    repositoryName: githubRepositoryName
+    repositoryId: githubRepositoryId
+    tags: tags
+  }
+}
+
 // ── Per-Environment: Managed Identity ───────────────────────────────────────
 
 resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
@@ -196,6 +224,8 @@ module app 'modules/container-app.bicep' = if (!empty(containerImage)) {
 output acrLoginServer string = acr.outputs.acrLoginServer
 output identityPrincipalId string = identity.properties.principalId
 output identityName string = identity.name
+output deployIdentityClientId string = deployIdentity.outputs.clientId
+output deployIdentityPrincipalId string = deployIdentity.outputs.principalId
 output foundryProjectName string = aiServices.outputs.projectName
 output foundryProjectId string = aiServices.outputs.projectId
 output appUrl string = !empty(containerImage) ? app.outputs.appUrl : ''
