@@ -56,6 +56,7 @@ resource ficMain 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedIden
 resource ficProduction 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials@2023-01-31' = {
   parent: deployIdentity
   name: 'github-production'
+  dependsOn: [ficMain]
   properties: {
     issuer: 'https://token.actions.githubusercontent.com'
     subject: '${subjectPrefix}:environment:production'
